@@ -1,0 +1,2892 @@
+--[[
+=========================================================
+                  GOJO HUB UI LIBRARY
+                 "Limitless" Edition  v2.0.0
+=========================================================
+
+API เหมือนสไตล์ KRYVEX (ย้ายสคริปต์มาใช้ง่าย)
+
+WINDOW
+- CreateWindow / Tab / CreateTab
+- Notify (success | warning | error)
+- Minimize / Hide / Show / ToggleVisibility
+- SetSize / Resize / Drag / Destroy
+- Confirm dialog / SetToggleKey
+- Floating Button (สี่เหลี่ยม UICorner ลากได้ + วงโคจร)
+
+TAB ELEMENTS
+- CreateSection / CreateLabel / CreateCard
+- CreateButton / CreateToggle / CreateSlider
+- CreateInput / CreateDropdown / CreateMultiDropdown
+- CreateColorPicker (HSV จริง) / CreateKeybind
+- CreateStatus / CreateFeatureCard
+- CreateInfoCard / CreateProfileCard
+- CreateSearchBox / CreateCommandBox
+
+EFFECTS
+- Glow / Pulse / Shake / Rainbow / Aura (พลังคำสาป)
+- ขอบ UI ไล่สี น้ำเงิน <-> ดำอ่อน หมุนวนตลอด
+- Intro เต็มจอ (วงแหวน Infinity + Six Eyes)
+- อนุภาคลอยขึ้น / ลูกแก้ว Blue & Red โคจรรอบโลโก้
+
+THEMES:  GOJO:SetTheme("blue" | "purple" | "red")  (เรียกก่อน CreateWindow)
+=========================================================
+]]
+
+--=========================================================
+-- SERVICES
+--=========================================================
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local LocalPlayer = Players.LocalPlayer
+
+local GOJO = {}
+GOJO.Name = "Gojo Hub"
+GOJO.Version = "2.0.0"
+
+--=========================================================
+-- THEMES
+--=========================================================
+
+local function CloneTheme(source, patch)
+	local result = {}
+	for k, v in pairs(source) do result[k] = v end
+	for k, v in pairs(patch or {}) do result[k] = v end
+	return result
+end
+
+GOJO.Themes = {}
+
+GOJO.Themes.Blue = {
+	Background = Color3.fromRGB(8, 10, 18),
+	Sidebar = Color3.fromRGB(6, 8, 14),
+	Card = Color3.fromRGB(16, 21, 38),
+	CardHover = Color3.fromRGB(26, 36, 64),
+	Primary = Color3.fromRGB(64, 132, 255),
+	PrimaryDark = Color3.fromRGB(30, 66, 150),
+	Glow = Color3.fromRGB(125, 205, 255),
+	SoftBlack = Color3.fromRGB(30, 31, 44),
+	Line = Color3.fromRGB(36, 54, 104),
+	Text = Color3.fromRGB(236, 243, 255),
+	SubText = Color3.fromRGB(135, 156, 200),
+	ToggleOff = Color3.fromRGB(40, 48, 78),
+	Danger = Color3.fromRGB(220, 60, 80),
+	Success = Color3.fromRGB(70, 210, 130),
+	Warning = Color3.fromRGB(255, 190, 70),
+	FloatBg = Color3.fromRGB(8, 11, 22),
+	OrbA = Color3.fromRGB(70, 150, 255),
+	OrbB = Color3.fromRGB(255, 70, 85),
+}
+
+GOJO.Themes.Purple = CloneTheme(GOJO.Themes.Blue, {
+	Background = Color3.fromRGB(14, 9, 22),
+	Sidebar = Color3.fromRGB(10, 6, 17),
+	Card = Color3.fromRGB(28, 18, 46),
+	CardHover = Color3.fromRGB(44, 28, 74),
+	Primary = Color3.fromRGB(150, 80, 255),
+	PrimaryDark = Color3.fromRGB(80, 36, 160),
+	Glow = Color3.fromRGB(208, 150, 255),
+	Line = Color3.fromRGB(70, 40, 120),
+	SubText = Color3.fromRGB(170, 145, 210),
+	ToggleOff = Color3.fromRGB(58, 42, 88),
+	FloatBg = Color3.fromRGB(16, 8, 26),
+})
+
+GOJO.Themes.Red = CloneTheme(GOJO.Themes.Blue, {
+	Background = Color3.fromRGB(20, 8, 10),
+	Sidebar = Color3.fromRGB(14, 5, 7),
+	Card = Color3.fromRGB(40, 16, 20),
+	CardHover = Color3.fromRGB(66, 24, 30),
+	Primary = Color3.fromRGB(255, 70, 80),
+	PrimaryDark = Color3.fromRGB(150, 28, 40),
+	Glow = Color3.fromRGB(255, 160, 160),
+	Line = Color3.fromRGB(110, 36, 44),
+	SubText = Color3.fromRGB(210, 150, 155),
+	ToggleOff = Color3.fromRGB(82, 40, 46),
+	FloatBg = Color3.fromRGB(22, 6, 8),
+})
+
+local Theme
+
+function GOJO:SetTheme(name)
+	local key = tostring(name or "blue"):lower():gsub("^%l", string.upper)
+	if not self.Themes[key] then key = "Blue" end
+	Theme = self.Themes[key]
+	self.Theme = Theme
+	self.ThemeName = key
+	return Theme
+end
+
+GOJO:SetTheme("blue")
+
+-- 0 = ทึบ  1 = โปร่งใสสุด
+GOJO.Glass = { Main = 0.06, Sidebar = 0.2, Card = 0.25 }
+GOJO.Corners = { Element = 8, Inner = 6 }
+
+-- เปิด/ปิดเอฟเฟกต์ (ตั้งก่อน CreateWindow)
+GOJO.FX = {
+	Tint = true,
+	Particles = true,
+	Orbs = true,
+	HeaderLine = true,
+	TitleShine = true,
+	BorderPulse = true,
+	FloatOrbit = true,
+	Intro = true,
+	IntroOnce = true,
+}
+
+-- พื้นหลังรูป (ไม่บังคับ)
+GOJO.Background = { Image = "", Transparency = 0.55 }
+
+--=========================================================
+-- HELPERS
+--=========================================================
+
+local function New(class, props, children)
+	local obj = Instance.new(class)
+	local parent
+	for k, v in pairs(props or {}) do
+		if k == "Parent" then parent = v else obj[k] = v end
+	end
+	for _, c in ipairs(children or {}) do c.Parent = obj end
+	if parent then obj.Parent = parent end
+	return obj
+end
+
+local function Corner(obj, r)
+	return New("UICorner", { CornerRadius = UDim.new(0, r or 8), Parent = obj })
+end
+
+local function Round(obj)
+	return New("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = obj })
+end
+
+local function Stroke(obj, color, transparency, thickness)
+	return New("UIStroke", {
+		Color = color or Theme.Primary,
+		Transparency = transparency or 0,
+		Thickness = thickness or 1,
+		Parent = obj,
+	})
+end
+
+local function Tween(obj, time, goal, style, dir)
+	local tw = TweenService:Create(
+		obj,
+		TweenInfo.new(time or 0.25, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out),
+		goal
+	)
+	tw:Play()
+	return tw
+end
+
+local function IsPress(i)
+	return i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch
+end
+
+local function IsMove(i)
+	return i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch
+end
+
+local function GetParent()
+	if typeof(gethui) == "function" then
+		local ok, res = pcall(gethui)
+		if ok and res then return res end
+	end
+	return LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local function GetPing()
+	local ok, v = pcall(function()
+		return math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+	end)
+	return ok and v or 0
+end
+
+--=========================================================
+-- ICONS
+-- Icon ใส่ได้ 3 แบบ: "rbxassetid://..." / ชื่อ ("settings") / KRYVEX-style AddIcons
+--=========================================================
+
+GOJO.Icons = {}
+
+GOJO.IconGlyphs = {
+	settings = "\u{2699}", setting = "\u{2699}", cog = "\u{2699}",
+	home = "\u{2302}", house = "\u{2302}", main = "\u{2302}",
+	star = "\u{2605}", info = "\u{2139}",
+	user = "\u{263B}", users = "\u{263B}", player = "\u{263B}",
+	sword = "\u{2694}", swords = "\u{2694}", combat = "\u{2694}",
+	zap = "\u{26A1}", bolt = "\u{26A1}", heart = "\u{2665}",
+	eye = "\u{25C9}", visuals = "\u{25C9}", search = "\u{2315}",
+	list = "\u{2630}", menu = "\u{2630}", misc = "\u{25C8}",
+	shield = "\u{26E8}", bug = "\u{2731}", play = "\u{25B6}",
+	bell = "\u{266A}", code = "\u{276E}\u{276F}",
+	map = "\u{25CE}", target = "\u{25CE}", teleport = "\u{27A4}", farm = "\u{273F}",
+	infinity = "\u{221E}", sparkles = "\u{2726}", skull = "\u{2620}",
+	moon = "\u{263E}", ["alert-triangle"] = "\u{26A0}", ["triangle-alert"] = "\u{26A0}",
+	check = "\u{2713}", x = "\u{2715}",
+}
+
+GOJO.IconAliases = {
+	home = "house", main = "house", setting = "settings", cog = "settings",
+	player = "user", visuals = "eye", combat = "swords", misc = "shapes",
+	teleport = "map-pin", farm = "sprout", ["triangle-alert"] = "alert-triangle",
+}
+
+GOJO.UseLucide = true
+GOJO.LucideUrl = "https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/refs/heads/main/source.lua"
+
+function GOJO:AddIcons(tbl)
+	for name, value in pairs(tbl or {}) do
+		GOJO.Icons[string.lower(tostring(name))] = value
+	end
+end
+
+local LucideModule, LucideTried
+
+local function GetLucide()
+	if LucideTried then return LucideModule end
+	LucideTried = true
+	if not GOJO.UseLucide then return nil end
+	local ok, res = pcall(function()
+		return loadstring(game:HttpGet(GOJO.LucideUrl))()
+	end)
+	if ok and type(res) == "table" and res.GetAsset then
+		LucideModule = res
+	else
+		warn("[Gojo UI] load Lucide failed, using fallback glyphs")
+	end
+	return LucideModule
+end
+
+local function GetLucideIcon(name)
+	local lucide = GetLucide()
+	if not lucide then return nil end
+	for _, candidate in ipairs({ name, GOJO.IconAliases[name] }) do
+		local ok, asset = pcall(lucide.GetAsset, candidate)
+		if ok and asset and asset.Url then
+			return {
+				Image = asset.Url,
+				ImageRectOffset = asset.ImageRectOffset,
+				ImageRectSize = asset.ImageRectSize,
+				Tint = true,
+			}
+		end
+	end
+	return nil
+end
+
+-- คืน kind ("image" | "glyph"), data
+local function ResolveIcon(icon)
+	if icon == nil or icon == "" then return nil end
+	if type(icon) == "number" then
+		return "image", { Image = "rbxassetid://" .. tostring(icon) }
+	end
+	if type(icon) == "table" then return "image", icon end
+
+	icon = tostring(icon)
+	if icon:find("rbxassetid://", 1, true) or icon:find("rbxthumb://", 1, true)
+		or icon:find("rbxasset://", 1, true) or icon:match("^https?://") then
+		return "image", { Image = icon }
+	end
+	if icon:match("^%d+$") then
+		return "image", { Image = "rbxassetid://" .. icon }
+	end
+
+	local key = string.lower(icon):gsub("^lucide:", "")
+	local registered = GOJO.Icons[key]
+	if registered then
+		if type(registered) == "table" then return "image", registered end
+		return "image", { Image = tostring(registered) }
+	end
+
+	local lucideIcon = GetLucideIcon(key)
+	if lucideIcon then return "image", lucideIcon end
+
+	return "glyph", GOJO.IconGlyphs[key] or "\u{25C8}"
+end
+
+function GOJO.CreateIcon(icon, props)
+	props = props or {}
+	local kind, data = ResolveIcon(icon)
+	if not kind then return nil end
+	local object
+	if kind == "image" then
+		object = New("ImageLabel", {
+			Name = props.Name or "Icon",
+			AnchorPoint = props.AnchorPoint,
+			Position = props.Position,
+			Size = props.Size or UDim2.fromOffset(18, 18),
+			BackgroundTransparency = 1,
+			Image = data.Image or "",
+			ImageRectOffset = data.ImageRectOffset or Vector2.zero,
+			ImageRectSize = data.ImageRectSize or Vector2.zero,
+			ImageColor3 = props.Color or (data.Tint and Theme.Glow or Color3.new(1, 1, 1)),
+			ImageTransparency = props.Transparency or 0,
+			ScaleType = Enum.ScaleType.Fit,
+			ZIndex = props.ZIndex or 1,
+		})
+	else
+		object = New("TextLabel", {
+			Name = props.Name or "Icon",
+			AnchorPoint = props.AnchorPoint,
+			Position = props.Position,
+			Size = props.Size or UDim2.fromOffset(18, 18),
+			BackgroundTransparency = 1,
+			Text = data,
+			TextColor3 = props.Color or Theme.Glow,
+			TextTransparency = props.Transparency or 0,
+			TextSize = props.TextSize or 16,
+			Font = Enum.Font.GothamBold,
+			ZIndex = props.ZIndex or 1,
+		})
+	end
+	return object, kind
+end
+
+local function SetIconColor(obj, color)
+	if not obj then return end
+	if obj:IsA("ImageLabel") then
+		Tween(obj, 0.18, { ImageColor3 = color })
+	else
+		Tween(obj, 0.18, { TextColor3 = color })
+	end
+end
+
+--=========================================================
+-- EFFECTS
+--=========================================================
+
+GOJO.Effects = {}
+
+function GOJO.Effects:Glow(obj, color)
+	if not obj or not obj.Parent then return end
+	local st = obj:FindFirstChild("GOJO_Glow")
+	if not st then
+		st = New("UIStroke", {
+			Name = "GOJO_Glow",
+			Thickness = 1,
+			Transparency = 0.8,
+			Color = color or Theme.Primary,
+			Parent = obj,
+		})
+	end
+	Tween(st, 0.25, { Transparency = 0.15, Thickness = 2 })
+	return st
+end
+
+function GOJO.Effects:Pulse(obj)
+	if not obj then return end
+	local sc = obj:FindFirstChild("GOJO_PulseScale")
+	if not sc then
+		sc = New("UIScale", { Name = "GOJO_PulseScale", Scale = 1, Parent = obj })
+	end
+	task.spawn(function()
+		while obj.Parent do
+			Tween(sc, 0.7, { Scale = 1.03 }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+			task.wait(0.7)
+			if not obj.Parent then break end
+			Tween(sc, 0.7, { Scale = 1 }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+			task.wait(0.7)
+		end
+	end)
+end
+
+function GOJO.Effects:Shake(obj, strength)
+	if not obj then return end
+	strength = strength or 4
+	local origin = obj.Position
+	task.spawn(function()
+		for _ = 1, 8 do
+			if not obj.Parent then return end
+			obj.Position = UDim2.new(
+				origin.X.Scale, origin.X.Offset + math.random(-strength, strength),
+				origin.Y.Scale, origin.Y.Offset + math.random(-strength, strength)
+			)
+			task.wait(0.035)
+		end
+		if obj.Parent then obj.Position = origin end
+	end)
+end
+
+function GOJO.Effects:Rainbow(obj)
+	if not obj then return end
+	local g = obj:FindFirstChild("GOJO_Rainbow")
+	if not g then
+		g = New("UIGradient", {
+			Name = "GOJO_Rainbow",
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 70, 70)),
+				ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 210, 70)),
+				ColorSequenceKeypoint.new(0.4, Color3.fromRGB(80, 255, 120)),
+				ColorSequenceKeypoint.new(0.6, Color3.fromRGB(80, 180, 255)),
+				ColorSequenceKeypoint.new(0.8, Color3.fromRGB(170, 90, 255)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 80, 180)),
+			}),
+			Parent = obj,
+		})
+	end
+	task.spawn(function()
+		while obj.Parent do
+			g.Rotation = (g.Rotation + 2) % 360
+			task.wait(0.03)
+		end
+	end)
+	return g
+end
+
+-- พลังคำสาปลอยขึ้นในกรอบ (เหมือน Fire ของ KRYVEX)
+function GOJO.Effects:Aura(container)
+	if not container then return end
+	local holder = container:FindFirstChild("GOJO_Aura")
+	if holder then return holder end
+	holder = New("Frame", {
+		Name = "GOJO_Aura",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		ClipsDescendants = true,
+		ZIndex = 5,
+		Parent = container,
+	})
+	task.spawn(function()
+		while holder.Parent do
+			local size = math.random(3, 6)
+			local dot = New("Frame", {
+				Size = UDim2.fromOffset(size, size),
+				Position = UDim2.new(math.random(5, 95) / 100, 0, 1, 0),
+				BackgroundColor3 = (math.random() < 0.5) and Theme.Primary or Theme.Glow,
+				BackgroundTransparency = 0.2,
+				BorderSizePixel = 0,
+				ZIndex = 6,
+				Parent = holder,
+			})
+			Round(dot)
+			Tween(dot, math.random(14, 24) / 10, {
+				Position = UDim2.new(dot.Position.X.Scale, 0, -0.1, 0),
+				BackgroundTransparency = 1,
+				Size = UDim2.fromOffset(1, 1),
+			})
+			task.delay(2.6, function() dot:Destroy() end)
+			task.wait(math.random(12, 26) / 100)
+		end
+	end)
+	return holder
+end
+
+GOJO.Effects.Fire = GOJO.Effects.Aura
+
+--=========================================================
+-- SCREEN INTRO (วงแหวน Infinity + Six Eyes)
+--=========================================================
+
+function GOJO.BuildIntro(Gui, TitleText, SubText)
+	local FX = GOJO.FX
+	if FX.IntroOnce and GOJO.IntroPlayed then return end
+	GOJO.IntroPlayed = true
+
+	local Root = New("Frame", {
+		Name = "GojoIntro",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		ZIndex = 200,
+		Parent = Gui,
+	})
+	local function alive() return Root.Parent ~= nil end
+	task.delay(9, function() if Root.Parent then Root:Destroy() end end)
+
+	local Dim = New("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(2, 4, 12),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 200,
+		Parent = Root,
+	})
+
+	local cx, cy = 0.5, 0.4
+
+	local function Ring(delay)
+		task.delay(delay, function()
+			if not alive() then return end
+			local r = New("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(cx, cy),
+				Size = UDim2.fromOffset(20, 20),
+				BackgroundTransparency = 1,
+				ZIndex = 201,
+				Parent = Root,
+			})
+			Round(r)
+			local st = New("UIStroke", { Color = Theme.Glow, Thickness = 3, Transparency = 0.1, Parent = r })
+			Tween(r, 1.2, { Size = UDim2.fromOffset(560, 560) }, Enum.EasingStyle.Quart)
+			Tween(st, 1.2, { Transparency = 1, Thickness = 0.5 })
+			task.delay(1.3, function() r:Destroy() end)
+		end)
+	end
+
+	local Sym = New("TextLabel", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(cx, cy),
+		Size = UDim2.fromOffset(220, 120),
+		BackgroundTransparency = 1,
+		Text = "\u{221E}",
+		TextColor3 = Theme.Glow,
+		TextTransparency = 1,
+		TextSize = 96,
+		Font = Enum.Font.GothamBlack,
+		ZIndex = 203,
+		Parent = Root,
+	})
+	local SymStroke = New("UIStroke", { Color = Theme.Primary, Thickness = 3, Transparency = 0.4, Parent = Sym })
+	local SymScale = New("UIScale", { Scale = 0.3, Parent = Sym })
+
+	local Eyes = {}
+	local function Eye(dx, rot)
+		local e = New("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(cx, dx, cy, 0),
+			Size = UDim2.fromOffset(0, 6),
+			BackgroundColor3 = Color3.fromRGB(200, 238, 255),
+			BorderSizePixel = 0,
+			Rotation = rot,
+			ZIndex = 204,
+			Parent = Root,
+		})
+		Round(e)
+		local g = New("UIStroke", { Color = Theme.Primary, Thickness = 3, Transparency = 0.3, Parent = e })
+		Tween(e, 0.35, { Size = UDim2.fromOffset(64, 6) }, Enum.EasingStyle.Back)
+		table.insert(Eyes, { e, g })
+	end
+
+	local TitleLabel, TitleStroke, SubLabel
+
+	task.spawn(function()
+		pcall(function()
+			Tween(Dim, 0.4, { BackgroundTransparency = 0.3 })
+			task.wait(0.35)
+			Ring(0) Ring(0.2) Ring(0.4)
+			Tween(Sym, 0.5, { TextTransparency = 0 })
+			Tween(SymScale, 0.6, { Scale = 1 }, Enum.EasingStyle.Back)
+			task.wait(0.8)
+			if not alive() then return end
+
+			Eye(-125, -8)
+			Eye(125, 8)
+			task.wait(0.5)
+
+			-- พิมพ์ชื่อทีละตัว
+			local text = tostring(TitleText or "GOJO")
+			TitleLabel = New("TextLabel", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.64),
+				Size = UDim2.new(1, 0, 0, 56),
+				BackgroundTransparency = 1,
+				Text = "",
+				TextColor3 = Theme.Text,
+				TextSize = 42,
+				Font = Enum.Font.GothamBlack,
+				ZIndex = 205,
+				Parent = Root,
+			})
+			TitleStroke = New("UIStroke", { Color = Theme.Primary, Thickness = 2.5, Transparency = 0.4, Parent = TitleLabel })
+			SubLabel = New("TextLabel", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(0.5, 0, 0.64, 42),
+				Size = UDim2.new(1, 0, 0, 20),
+				BackgroundTransparency = 1,
+				Text = tostring(SubText or ""),
+				TextColor3 = Theme.Glow,
+				TextTransparency = 1,
+				TextSize = 15,
+				Font = Enum.Font.GothamBold,
+				ZIndex = 205,
+				Parent = Root,
+			})
+
+			local count = utf8.len(text) or #text
+			for i = 1, count do
+				if not alive() then return end
+				local cut = utf8.offset(text, i + 1)
+				TitleLabel.Text = cut and string.sub(text, 1, cut - 1) or text
+				task.wait(0.07)
+			end
+			Tween(SubLabel, 0.4, { TextTransparency = 0 })
+
+			-- กะพริบ Six Eyes
+			task.wait(0.5)
+			for _, pair in ipairs(Eyes) do pair[1].Size = UDim2.fromOffset(64, 1) end
+			task.wait(0.12)
+			for _, pair in ipairs(Eyes) do pair[1].Size = UDim2.fromOffset(64, 6) end
+			task.wait(1.0)
+
+			-- เฟดออก
+			Tween(Dim, 0.7, { BackgroundTransparency = 1 })
+			Tween(Sym, 0.6, { TextTransparency = 1 })
+			Tween(SymStroke, 0.6, { Transparency = 1 })
+			for _, pair in ipairs(Eyes) do
+				Tween(pair[1], 0.5, { BackgroundTransparency = 1 })
+				Tween(pair[2], 0.5, { Transparency = 1 })
+			end
+			Tween(TitleLabel, 0.6, { TextTransparency = 1 })
+			Tween(TitleStroke, 0.6, { Transparency = 1 })
+			Tween(SubLabel, 0.6, { TextTransparency = 1 })
+			task.wait(0.8)
+		end)
+		if Root.Parent then Root:Destroy() end
+	end)
+end
+
+--=========================================================
+-- SHARED UI PIECES
+--=========================================================
+
+local function AddFieldLabel(frame, name, desc)
+	New("TextLabel", {
+		Position = UDim2.fromOffset(14, 6),
+		Size = UDim2.new(0.6, -14, 0, 18),
+		BackgroundTransparency = 1,
+		Text = name or "Input",
+		TextColor3 = Theme.Text,
+		TextSize = 12,
+		Font = Enum.Font.GothamSemibold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		ZIndex = 3,
+		Parent = frame,
+	})
+	if desc and tostring(desc) ~= "" then
+		New("TextLabel", {
+			Position = UDim2.new(0.6, 0, 0, 6),
+			Size = UDim2.new(0.4, -14, 0, 18),
+			BackgroundTransparency = 1,
+			Text = tostring(desc),
+			TextColor3 = Theme.SubText,
+			TextSize = 10,
+			Font = Enum.Font.Gotham,
+			TextXAlignment = Enum.TextXAlignment.Right,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			ZIndex = 3,
+			Parent = frame,
+		})
+	end
+end
+
+-- ไอคอน + ชื่อ + คำอธิบาย (ใช้ซ้ำใน Button/Toggle/Keybind ฯลฯ)
+local function BuildLabels(f, cfg, defaultName, rightReserve, z)
+	local icon = cfg.Icon or cfg.Image
+	local desc = cfg.Description or cfg.Subtitle
+	local hasDesc = desc ~= nil and tostring(desc) ~= ""
+	local x = 14
+
+	if icon ~= nil and icon ~= "" then
+		local ic = GOJO.CreateIcon(icon, {
+			Name = "ElementIcon",
+			Size = UDim2.fromOffset(cfg.IconSize or 20, cfg.IconSize or 20),
+			Position = UDim2.new(0, 14, 0.5, 0),
+			AnchorPoint = Vector2.new(0, 0.5),
+			Color = cfg.IconColor,
+			ZIndex = z,
+		})
+		if ic then ic.Parent = f x = 46 end
+	end
+
+	local Title = New("TextLabel", {
+		Name = "Title",
+		Position = hasDesc and UDim2.new(0, x, 0, 8) or UDim2.new(0, x, 0, 0),
+		Size = hasDesc and UDim2.new(1, -(x + rightReserve), 0, 21) or UDim2.new(1, -(x + rightReserve), 1, 0),
+		BackgroundTransparency = 1,
+		Text = tostring(cfg.Name or defaultName),
+		TextColor3 = cfg.TextColor or Theme.Text,
+		TextSize = cfg.TextSize or 13,
+		Font = Enum.Font.GothamSemibold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		ZIndex = z,
+		Parent = f,
+	})
+
+	local Detail
+	if hasDesc then
+		Detail = New("TextLabel", {
+			Name = "Description",
+			Position = UDim2.new(0, x, 0, 31),
+			Size = UDim2.new(1, -(x + rightReserve), 0, 18),
+			BackgroundTransparency = 1,
+			Text = tostring(desc),
+			TextColor3 = cfg.DescriptionColor or Theme.SubText,
+			TextSize = cfg.DescriptionTextSize or 11,
+			Font = Enum.Font.Gotham,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			ZIndex = z,
+			Parent = f,
+		})
+	end
+	return Title, Detail
+end
+
+--=========================================================
+-- CREATE WINDOW
+--=========================================================
+
+function GOJO:CreateWindow(config)
+	config = config or {}
+	if config.Theme then GOJO:SetTheme(config.Theme) end
+	if config.Intro ~= nil then GOJO.FX.Intro = config.Intro end
+
+	local FX = GOJO.FX
+	local Window = {}
+
+	Window.Title = config.Title or "GOJO HUB"
+	Window.Subtitle = config.Subtitle or "Limitless  \u{2022}  Infinity"
+	Window.Size = config.Size or Vector2.new(700, 440)
+	Window.MinSize = config.MinSize or Vector2.new(560, 360)
+	Window.MaxSize = config.MaxSize or Vector2.new(1000, 650)
+	Window.CurSize = Vector2.new(Window.Size.X, Window.Size.Y)
+	Window.ToggleKey = config.ToggleKey or Enum.KeyCode.RightShift
+	Window.Tabs = {}
+	Window.IsHidden = false
+	Window.IsMinimized = false
+	Window.Destroyed = false
+	Window.ConfirmOnClose = config.ConfirmOnClose ~= false
+
+	local conns, gradients, updaters = {}, {}, {}
+
+	local function Connect(signal, fn)
+		local c = signal:Connect(fn)
+		table.insert(conns, c)
+		return c
+	end
+
+	local function Dragger(area, onUpdate)
+		local active = false
+		Connect(area.InputBegan, function(i)
+			if IsPress(i) then active = true onUpdate(i) end
+		end)
+		Connect(UserInputService.InputChanged, function(i)
+			if active and IsMove(i) then onUpdate(i) end
+		end)
+		Connect(UserInputService.InputEnded, function(i)
+			if IsPress(i) then active = false end
+		end)
+	end
+
+	-- ขอบไล่สี น้ำเงิน <-> ดำอ่อน (หมุนวน)
+	local function BorderGrad(target, thickness)
+		local st = New("UIStroke", {
+			Parent = target,
+			Thickness = thickness,
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Color = Color3.new(1, 1, 1),
+		})
+		local g = New("UIGradient", {
+			Parent = st,
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Theme.Primary),
+				ColorSequenceKeypoint.new(0.25, Theme.SoftBlack),
+				ColorSequenceKeypoint.new(0.5, Theme.Glow),
+				ColorSequenceKeypoint.new(0.75, Theme.SoftBlack),
+				ColorSequenceKeypoint.new(1, Theme.Primary),
+			}),
+		})
+		table.insert(gradients, g)
+		return st, g
+	end
+
+	-- ลูกแก้ว Blue & Red โคจร
+	local function Orbit(parent, radius, z)
+		local orbs = {
+			{ color = Theme.OrbA, phase = 0, speed = 1.8 },
+			{ color = Theme.OrbB, phase = math.pi, speed = 1.8 },
+		}
+		for _, o in ipairs(orbs) do
+			o.frame = New("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.fromOffset(7, 7),
+				BackgroundColor3 = o.color,
+				BorderSizePixel = 0,
+				ZIndex = z or 8,
+				Parent = parent,
+			})
+			Round(o.frame)
+			New("UIStroke", { Color = o.color, Transparency = 0.5, Thickness = 3, Parent = o.frame })
+		end
+		table.insert(updaters, function(t)
+			for _, o in ipairs(orbs) do
+				local a = o.phase + t * o.speed
+				o.frame.Position = UDim2.new(0.5, math.cos(a) * radius, 0.5, math.sin(a) * radius * 0.8)
+				o.frame.Size = UDim2.fromOffset(7 + math.sin(a) * 2, 7 + math.sin(a) * 2)
+			end
+		end)
+	end
+
+	--=====================================================
+	-- SCREEN GUI + MAIN
+	--=====================================================
+
+	local guiParent = GetParent()
+	for _, c in ipairs(guiParent:GetChildren()) do
+		if string.sub(c.Name, 1, 8) == "GOJO_UI_" then c:Destroy() end
+	end
+
+	local ScreenGui = New("ScreenGui", {
+		Name = "GOJO_UI_" .. tostring(math.random(10000, 99999)),
+		ResetOnSpawn = false,
+		IgnoreGuiInset = true,
+		DisplayOrder = 999,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		Parent = guiParent,
+	})
+	Window.ScreenGui = ScreenGui
+
+	local Main = New("Frame", {
+		Name = "Main",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(Window.Size.X, Window.Size.Y),
+		BackgroundColor3 = Theme.Background,
+		BackgroundTransparency = GOJO.Glass.Main,
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
+		Parent = ScreenGui,
+	})
+	Corner(Main, 16)
+	Window.Main = Main
+
+	local HideScale = New("UIScale", { Name = "HideScale", Scale = 1, Parent = Main })
+
+	local MainStroke = BorderGrad(Main, 2.5)
+
+	-- เฉดพื้นหลัง
+	if FX.Tint then
+		local tint = New("Frame", {
+			Name = "GojoTint",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BorderSizePixel = 0,
+			ZIndex = 0,
+			Parent = Main,
+		})
+		New("UIGradient", {
+			Rotation = 90,
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Theme.Primary),
+				ColorSequenceKeypoint.new(0.5, Theme.Background),
+				ColorSequenceKeypoint.new(1, Theme.PrimaryDark),
+			}),
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.82),
+				NumberSequenceKeypoint.new(0.5, 1),
+				NumberSequenceKeypoint.new(1, 0.88),
+			}),
+			Parent = tint,
+		})
+	end
+
+	local bgImage = config.Background or GOJO.Background.Image
+	if bgImage and bgImage ~= "" then
+		local bg = New("ImageLabel", {
+			Name = "BackgroundImage",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Image = bgImage,
+			ImageTransparency = config.BackgroundTransparency or GOJO.Background.Transparency,
+			ScaleType = Enum.ScaleType.Crop,
+			ZIndex = 0,
+			Parent = Main,
+		})
+		Corner(bg, 16)
+		Window.BgImage = bg
+	end
+
+	--=====================================================
+	-- HEADER (Title + Subtitle ซ้ายบน)
+	--=====================================================
+
+	local Header = New("Frame", {
+		Name = "Header",
+		Size = UDim2.new(1, 0, 0, 58),
+		BackgroundTransparency = 1,
+		Active = true,
+		Parent = Main,
+	})
+
+	local Logo = New("Frame", {
+		Name = "Logo",
+		Position = UDim2.fromOffset(12, 11),
+		Size = UDim2.fromOffset(36, 36),
+		BackgroundColor3 = Theme.FloatBg,
+		BorderSizePixel = 0,
+		Parent = Header,
+	})
+	Corner(Logo, 10)
+	BorderGrad(Logo, 1.8)
+	New("TextLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = "\u{221E}",
+		TextColor3 = Theme.Glow,
+		TextSize = 22,
+		Font = Enum.Font.GothamBlack,
+		Parent = Logo,
+	})
+	if config.Logo and config.Logo ~= "" then
+		New("ImageLabel", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Image = config.Logo,
+			ScaleType = Enum.ScaleType.Fit,
+			ZIndex = 2,
+			Parent = Logo,
+		})
+	end
+	if FX.Orbs then Orbit(Logo, 27, 6) end
+
+	local Title = New("TextLabel", {
+		Name = "Title",
+		Position = UDim2.fromOffset(62, 7),
+		Size = UDim2.new(1, -190, 0, 24),
+		BackgroundTransparency = 1,
+		Text = Window.Title,
+		TextColor3 = Color3.new(1, 1, 1),
+		TextSize = 17,
+		Font = Enum.Font.GothamBlack,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		Parent = Header,
+	})
+
+	New("TextLabel", {
+		Name = "Subtitle",
+		Position = UDim2.fromOffset(62, 31),
+		Size = UDim2.new(1, -190, 0, 20),
+		BackgroundTransparency = 1,
+		Text = Window.Subtitle,
+		TextColor3 = Theme.SubText,
+		TextSize = 11,
+		Font = Enum.Font.Gotham,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		Parent = Header,
+	})
+
+	local function HeaderButton(text, x, size)
+		local b = New("TextButton", {
+			Size = UDim2.fromOffset(34, 34),
+			Position = UDim2.new(1, x, 0, 12),
+			BackgroundColor3 = Theme.Card,
+			BackgroundTransparency = 0.2,
+			Text = text,
+			TextColor3 = Theme.Text,
+			TextSize = size,
+			Font = Enum.Font.GothamBold,
+			AutoButtonColor = false,
+			Parent = Header,
+		})
+		Corner(b, 10)
+		return b
+	end
+
+	local MinimizeButton = HeaderButton("-", -86, 20)
+	local CloseButton = HeaderButton("\u{D7}", -46, 22)
+	Window.MinimizeButton, Window.CloseButton = MinimizeButton, CloseButton
+
+	local function HoverColor(btn, normal, hover)
+		btn.MouseEnter:Connect(function() Tween(btn, 0.15, { BackgroundColor3 = hover }) end)
+		btn.MouseLeave:Connect(function() Tween(btn, 0.15, { BackgroundColor3 = normal }) end)
+	end
+	HoverColor(MinimizeButton, Theme.Card, Theme.CardHover)
+	HoverColor(CloseButton, Theme.Card, Theme.Danger)
+
+	--=====================================================
+	-- AMBIENT FX
+	--=====================================================
+
+	local FXLayer = New("Frame", {
+		Name = "GojoFX",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		ClipsDescendants = true,
+		Active = false,
+		ZIndex = 25,
+		Parent = Main,
+	})
+
+	if FX.Particles then
+		local colors = { Theme.Primary, Theme.Glow, Color3.new(1, 1, 1) }
+		local ps = {}
+		for i = 1, 16 do
+			local size = math.random(2, 4)
+			local d = New("Frame", {
+				Size = UDim2.fromOffset(size, size),
+				BackgroundColor3 = colors[math.random(#colors)],
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				Parent = FXLayer,
+			})
+			Round(d)
+			ps[i] = {
+				F = d, X = 0.04 + math.random() * 0.92,
+				Speed = 0.03 + math.random() * 0.05, Off = math.random(),
+				Sway = 3 + math.random() * 7, Rate = 0.7 + math.random() * 1.3,
+				Ph = math.random() * 6.28,
+			}
+		end
+		table.insert(updaters, function(t)
+			for _, p in ipairs(ps) do
+				local fr = (t * p.Speed + p.Off) % 1
+				p.F.Position = UDim2.new(p.X, math.sin(t * p.Rate + p.Ph) * p.Sway, 1 - fr, 0)
+				p.F.BackgroundTransparency = 0.45 + 0.5 * math.abs(fr * 2 - 1)
+			end
+		end)
+	end
+
+	if FX.HeaderLine then
+		local line = New("Frame", {
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.new(0, 0, 1, 0),
+			Size = UDim2.new(1, 0, 0, 2),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BorderSizePixel = 0,
+			ZIndex = 4,
+			Parent = Header,
+		})
+		local g = New("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Theme.PrimaryDark),
+				ColorSequenceKeypoint.new(0.5, Theme.Glow),
+				ColorSequenceKeypoint.new(1, Theme.PrimaryDark),
+			}),
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.9),
+				NumberSequenceKeypoint.new(0.5, 0),
+				NumberSequenceKeypoint.new(1, 0.9),
+			}),
+			Parent = line,
+		})
+		table.insert(updaters, function(t) g.Offset = Vector2.new((t * 0.35) % 2 - 1, 0) end)
+	end
+
+	if FX.TitleShine then
+		local g = New("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Theme.Primary),
+				ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
+				ColorSequenceKeypoint.new(1, Theme.Primary),
+			}),
+			Parent = Title,
+		})
+		table.insert(updaters, function(t) g.Offset = Vector2.new((t * 0.5) % 2 - 1, 0) end)
+	end
+
+	if FX.BorderPulse then
+		table.insert(updaters, function(t)
+			MainStroke.Thickness = 2.1 + 0.8 * (0.5 + 0.5 * math.sin(t * 1.8))
+		end)
+	end
+
+	do
+		local clock = 0
+		Connect(RunService.Heartbeat, function(dt)
+			clock += dt
+			local rot = (clock * 70) % 360
+			for _, g in ipairs(gradients) do
+				if g.Parent then g.Rotation = rot end
+			end
+			for _, fn in ipairs(updaters) do fn(clock, dt) end
+		end)
+	end
+
+	--=====================================================
+	-- DRAG MAIN
+	--=====================================================
+
+	do
+		local dragging, dragStart, startPos = false, nil, nil
+		Connect(Header.InputBegan, function(i)
+			if IsPress(i) then
+				dragging, dragStart, startPos = true, i.Position, Main.Position
+				i.Changed:Connect(function()
+					if i.UserInputState == Enum.UserInputState.End then dragging = false end
+				end)
+			end
+		end)
+		Connect(UserInputService.InputChanged, function(i)
+			if dragging and IsMove(i) then
+				local d = i.Position - dragStart
+				Main.Position = UDim2.new(
+					startPos.X.Scale, startPos.X.Offset + d.X,
+					startPos.Y.Scale, startPos.Y.Offset + d.Y
+				)
+			end
+		end)
+	end
+
+	--=====================================================
+	-- SIDEBAR / PROFILE / CONTENT
+	--=====================================================
+
+	local Sidebar = New("Frame", {
+		Name = "Sidebar",
+		Position = UDim2.fromOffset(0, 58),
+		Size = UDim2.new(0, 190, 1, -58),
+		BackgroundColor3 = Theme.Sidebar,
+		BackgroundTransparency = GOJO.Glass.Sidebar,
+		BorderSizePixel = 0,
+		Parent = Main,
+	})
+
+	local Profile = New("Frame", {
+		Position = UDim2.fromOffset(10, 10),
+		Size = UDim2.new(1, -20, 0, 70),
+		BackgroundColor3 = Theme.Card,
+		BackgroundTransparency = GOJO.Glass.Card,
+		BorderSizePixel = 0,
+		Parent = Sidebar,
+	})
+	Corner(Profile, 10)
+	Stroke(Profile, Theme.Line, 0.4, 1)
+
+	local Avatar = New("ImageLabel", {
+		Position = UDim2.fromOffset(10, 12),
+		Size = UDim2.fromOffset(46, 46),
+		BackgroundColor3 = Theme.Background,
+		Image = "rbxthumb://type=AvatarHeadShot&id=" .. LocalPlayer.UserId .. "&w=150&h=150",
+		Parent = Profile,
+	})
+	Corner(Avatar, 10)
+	Stroke(Avatar, Theme.Primary, 0.3, 1.5)
+
+	New("TextLabel", {
+		Position = UDim2.fromOffset(64, 11),
+		Size = UDim2.new(1, -70, 0, 22),
+		BackgroundTransparency = 1,
+		Text = LocalPlayer.DisplayName,
+		TextColor3 = Theme.Text,
+		TextSize = 13,
+		Font = Enum.Font.GothamBold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		Parent = Profile,
+	})
+	New("TextLabel", {
+		Position = UDim2.fromOffset(64, 34),
+		Size = UDim2.new(1, -70, 0, 20),
+		BackgroundTransparency = 1,
+		Text = "@" .. LocalPlayer.Name,
+		TextColor3 = Theme.SubText,
+		TextSize = 10,
+		Font = Enum.Font.Gotham,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		Parent = Profile,
+	})
+
+	local TabHolder = New("ScrollingFrame", {
+		Name = "TabHolder",
+		Position = UDim2.fromOffset(10, 90),
+		Size = UDim2.new(1, -20, 1, -100),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 2,
+		ScrollBarImageColor3 = Theme.Primary,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		Parent = Sidebar,
+	})
+	New("UIListLayout", { Padding = UDim.new(0, 5), Parent = TabHolder })
+
+	local Content = New("Frame", {
+		Name = "Content",
+		Position = UDim2.fromOffset(190, 58),
+		Size = UDim2.new(1, -190, 1, -58),
+		BackgroundTransparency = 1,
+		Parent = Main,
+	})
+	Window.Content = Content
+
+	--=====================================================
+	-- RESIZE
+	--=====================================================
+
+	local ResizeHandle = New("TextButton", {
+		Position = UDim2.new(1, -28, 1, -28),
+		Size = UDim2.fromOffset(28, 28),
+		BackgroundTransparency = 1,
+		Text = "\u{231F}",
+		TextColor3 = Theme.SubText,
+		TextSize = 22,
+		Font = Enum.Font.GothamBold,
+		AutoButtonColor = false,
+		ZIndex = 100,
+		Parent = Main,
+	})
+
+	do
+		local resizing, startMouse, startSize, startPos = false, nil, nil, nil
+		Connect(ResizeHandle.InputBegan, function(i)
+			if IsPress(i) then
+				resizing, startMouse, startSize, startPos = true, i.Position, Window.CurSize, Main.Position
+				i.Changed:Connect(function()
+					if i.UserInputState == Enum.UserInputState.End then resizing = false end
+				end)
+			end
+		end)
+		Connect(UserInputService.InputChanged, function(i)
+			if resizing and IsMove(i) then
+				local d = i.Position - startMouse
+				local w = math.clamp(startSize.X + d.X, Window.MinSize.X, Window.MaxSize.X)
+				local h = math.clamp(startSize.Y + d.Y, Window.MinSize.Y, Window.MaxSize.Y)
+				Main.Size = UDim2.fromOffset(w, h)
+				-- Main anchor อยู่กลาง: ขยับตำแหน่งชดเชยให้มุมซ้ายบนอยู่ที่เดิม
+				Main.Position = UDim2.new(
+					startPos.X.Scale, startPos.X.Offset + (w - startSize.X) / 2,
+					startPos.Y.Scale, startPos.Y.Offset + (h - startSize.Y) / 2
+				)
+				Window.CurSize = Vector2.new(w, h)
+			end
+		end)
+	end
+
+	--=====================================================
+	-- NOTIFICATIONS
+	--=====================================================
+
+	local NotifHolder = New("Frame", {
+		Position = UDim2.new(1, -300, 0, 16),
+		Size = UDim2.new(0, 284, 1, -32),
+		BackgroundTransparency = 1,
+		ZIndex = 150,
+		Parent = ScreenGui,
+	})
+	New("UIListLayout", {
+		Padding = UDim.new(0, 8),
+		VerticalAlignment = Enum.VerticalAlignment.Top,
+		Parent = NotifHolder,
+	})
+
+	-- cfg: Title, Content, Duration, Type = "success" | "warning" | "error"
+	function Window:Notify(cfg)
+		cfg = cfg or {}
+		local kind = string.lower(tostring(cfg.Type or ""))
+		local pick = ({
+			success = { "check", Theme.Success },
+			warning = { "alert-triangle", Theme.Warning },
+			error = { "x", Theme.Danger },
+		})[kind] or { "infinity", Theme.Glow }
+		local duration = cfg.Duration or 3.5
+
+		local wrap = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 74),
+			BackgroundTransparency = 1,
+			Parent = NotifHolder,
+		})
+		local card = New("Frame", {
+			Position = UDim2.new(1.3, 0, 0, 0),
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Theme.Card,
+			BackgroundTransparency = 0.05,
+			BorderSizePixel = 0,
+			Parent = wrap,
+		})
+		Corner(card, 12)
+		Stroke(card, pick[2], 0.45, 1.2)
+
+		New("Frame", {
+			Position = UDim2.fromOffset(0, 10),
+			Size = UDim2.new(0, 3, 1, -20),
+			BackgroundColor3 = pick[2],
+			BorderSizePixel = 0,
+			Parent = card,
+		})
+
+		local ic = GOJO.CreateIcon(pick[1], {
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(0, 14, 0.5, 0),
+			Size = UDim2.fromOffset(22, 22),
+			Color = pick[2],
+			TextSize = 18,
+		})
+		if ic then ic.Parent = card end
+
+		New("TextLabel", {
+			Position = UDim2.fromOffset(46, 8),
+			Size = UDim2.new(1, -56, 0, 20),
+			BackgroundTransparency = 1,
+			Text = cfg.Title or GOJO.Name,
+			TextColor3 = Theme.Text,
+			TextSize = 13,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Parent = card,
+		})
+		New("TextLabel", {
+			Position = UDim2.fromOffset(46, 29),
+			Size = UDim2.new(1, -56, 0, 34),
+			BackgroundTransparency = 1,
+			Text = cfg.Content or "",
+			TextColor3 = Theme.SubText,
+			TextSize = 11,
+			Font = Enum.Font.Gotham,
+			TextWrapped = true,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			Parent = card,
+		})
+		local bar = New("Frame", {
+			Position = UDim2.new(0, 46, 1, -6),
+			Size = UDim2.new(1, -56, 0, 2),
+			BackgroundColor3 = pick[2],
+			BackgroundTransparency = 0.3,
+			BorderSizePixel = 0,
+			Parent = card,
+		})
+		Tween(card, 0.4, { Position = UDim2.new(0, 0, 0, 0) }, Enum.EasingStyle.Quint)
+		Tween(bar, duration, { Size = UDim2.new(0, 0, 0, 2) }, Enum.EasingStyle.Linear)
+
+		task.delay(duration, function()
+			if not card.Parent then return end
+			local out = Tween(card, 0.3, { Position = UDim2.new(1.3, 0, 0, 0) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			out.Completed:Wait()
+			wrap:Destroy()
+		end)
+		return card
+	end
+
+	--=====================================================
+	-- FLOATING BUTTON (สี่เหลี่ยม UICorner ลากได้)
+	--=====================================================
+
+	local FloatButton = New("TextButton", {
+		Name = "ToggleButton",
+		Position = UDim2.new(0, 22, 0.5, -29),
+		Size = UDim2.fromOffset(58, 58),
+		BackgroundColor3 = Theme.FloatBg,
+		BackgroundTransparency = 0.05,
+		Text = config.FloatIcon or "\u{221E}",
+		TextColor3 = Theme.Glow,
+		TextSize = 30,
+		Font = Enum.Font.GothamBlack,
+		AutoButtonColor = false,
+		ZIndex = 120,
+		Parent = ScreenGui,
+	})
+	Corner(FloatButton, 12)
+	local FloatStroke = BorderGrad(FloatButton, 2.5)
+	local FloatScale = New("UIScale", { Scale = 1, Parent = FloatButton })
+	Window.FloatButton = FloatButton
+
+	if config.FloatImage and config.FloatImage ~= "" then
+		FloatButton.Text = ""
+		New("ImageLabel", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Image = config.FloatImage,
+			ScaleType = Enum.ScaleType.Fit,
+			ZIndex = 121,
+			Parent = FloatButton,
+		})
+	end
+
+	if FX.FloatOrbit then Orbit(FloatButton, 44, 122) end
+
+	-- เรืองแสงเต้นตามจังหวะ
+	table.insert(updaters, function(t)
+		FloatButton.TextTransparency = 0.05 + 0.2 * (0.5 + 0.5 * math.sin(t * 2.2))
+	end)
+
+	do
+		local dragging, moved, startMouse, startPos = false, false, nil, nil
+		Connect(FloatButton.InputBegan, function(i)
+			if IsPress(i) then
+				dragging, moved = true, false
+				startMouse, startPos = i.Position, FloatButton.Position
+				i.Changed:Connect(function()
+					if i.UserInputState == Enum.UserInputState.End then dragging = false end
+				end)
+			end
+		end)
+		Connect(UserInputService.InputChanged, function(i)
+			if dragging and IsMove(i) then
+				local d = i.Position - startMouse
+				if math.abs(d.X) > 5 or math.abs(d.Y) > 5 then moved = true end
+				if moved then
+					FloatButton.Position = UDim2.new(
+						startPos.X.Scale, startPos.X.Offset + d.X,
+						startPos.Y.Scale, startPos.Y.Offset + d.Y
+					)
+				end
+			end
+		end)
+		FloatButton.Activated:Connect(function()
+			if moved or Window.Destroyed then return end
+			Tween(FloatScale, 0.08, { Scale = 0.86 })
+			task.wait(0.08)
+			Tween(FloatScale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
+			Window:ToggleVisibility()
+		end)
+	end
+
+	FloatButton.MouseEnter:Connect(function()
+		Tween(FloatScale, 0.18, { Scale = 1.08 })
+		Tween(FloatStroke, 0.18, { Thickness = 3.2 })
+	end)
+	FloatButton.MouseLeave:Connect(function()
+		Tween(FloatScale, 0.18, { Scale = 1 })
+		Tween(FloatStroke, 0.18, { Thickness = 2.5 })
+	end)
+
+	--=====================================================
+	-- WINDOW METHODS
+	--=====================================================
+
+	function Window:SetToggleKey(key)
+		if typeof(key) == "EnumItem" then Window.ToggleKey = key end
+	end
+
+	Connect(UserInputService.InputBegan, function(i, processed)
+		if not processed and i.KeyCode == Window.ToggleKey then
+			Window:ToggleVisibility()
+		end
+	end)
+
+	function Window:Minimize(state)
+		if Window.Destroyed or Window.IsHidden then return end
+		if state == nil then state = not Window.IsMinimized end
+		if state == Window.IsMinimized then return end
+		Window.IsMinimized = state
+
+		local fullH = Window.CurSize.Y
+		local shift = (58 - fullH) / 2
+		local pos = Main.Position
+
+		if state then
+			ResizeHandle.Visible = false
+			Tween(Main, 0.3, {
+				Size = UDim2.fromOffset(Window.CurSize.X, 58),
+				Position = UDim2.new(pos.X.Scale, pos.X.Offset, pos.Y.Scale, pos.Y.Offset + shift),
+			}, Enum.EasingStyle.Quart, Enum.EasingDirection.InOut)
+			MinimizeButton.Text = "+"
+		else
+			Tween(Main, 0.35, {
+				Size = UDim2.fromOffset(Window.CurSize.X, Window.CurSize.Y),
+				Position = UDim2.new(pos.X.Scale, pos.X.Offset, pos.Y.Scale, pos.Y.Offset - shift),
+			}, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+			MinimizeButton.Text = "-"
+			task.delay(0.36, function()
+				if not Window.IsMinimized then ResizeHandle.Visible = true end
+			end)
+		end
+	end
+
+	function Window:Hide()
+		if Window.Destroyed or Window.IsHidden then return end
+		Window.IsHidden = true
+		Tween(HideScale, 0.22, { Scale = 0.01 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		task.delay(0.24, function()
+			if Window.IsHidden and not Window.Destroyed then Main.Visible = false end
+		end)
+	end
+
+	function Window:Show()
+		if Window.Destroyed or not Window.IsHidden then return end
+		Window.IsHidden = false
+		Main.Visible = true
+		HideScale.Scale = 0.85
+		Tween(HideScale, 0.4, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	end
+
+	function Window:ToggleVisibility()
+		if Window.Destroyed then return end
+		if Window.IsHidden then Window:Show() else Window:Hide() end
+	end
+
+	function Window:SetSize(w, h)
+		if Window.Destroyed then return end
+		w = math.clamp(w, Window.MinSize.X, Window.MaxSize.X)
+		h = math.clamp(h, Window.MinSize.Y, Window.MaxSize.Y)
+		Window.CurSize = Vector2.new(w, h)
+		Tween(Main, 0.25, { Size = UDim2.fromOffset(w, h) })
+	end
+
+	function Window:Destroy()
+		if Window.Destroyed then return end
+		Window.Destroyed = true
+		Tween(FloatScale, 0.2, { Scale = 0 }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+		local tw = Tween(HideScale, 0.28, { Scale = 0.01 }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+		tw.Completed:Connect(function()
+			for _, c in ipairs(conns) do c:Disconnect() end
+			ScreenGui:Destroy()
+		end)
+	end
+
+	-- cfg: Title, Text, ConfirmText, CancelText, Icon, OnConfirm, OnCancel
+	function Window:Confirm(cfg)
+		cfg = cfg or {}
+		if Window.Destroyed or Window.ConfirmOpen then return end
+		Window.ConfirmOpen = true
+
+		local Overlay = New("Frame", {
+			Name = "ConfirmOverlay",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			ZIndex = 180,
+			Parent = ScreenGui,
+		})
+		local Blocker = New("TextButton", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 1,
+			Text = "",
+			AutoButtonColor = false,
+			ZIndex = 181,
+			Parent = Overlay,
+		})
+		local Dialog = New("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromOffset(290, 176),
+			BackgroundColor3 = Theme.Card,
+			BackgroundTransparency = 0.02,
+			BorderSizePixel = 0,
+			ZIndex = 182,
+			Parent = Overlay,
+		})
+		Corner(Dialog, 16)
+		BorderGrad(Dialog, 2)
+		local DScale = New("UIScale", { Scale = 0.85, Parent = Dialog })
+
+		local di = GOJO.CreateIcon(cfg.Icon or "alert-triangle", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 12),
+			Size = UDim2.fromOffset(32, 32),
+			Color = Theme.Warning,
+			TextSize = 28,
+			ZIndex = 183,
+		})
+		if di then di.Parent = Dialog end
+
+		local function Lbl(props)
+			props.BackgroundTransparency = 1
+			props.ZIndex = 183
+			props.Parent = Dialog
+			return New("TextLabel", props)
+		end
+		Lbl({
+			Position = UDim2.fromOffset(0, 48), Size = UDim2.new(1, 0, 0, 22),
+			Text = cfg.Title or "Close UI?", TextSize = 15,
+			Font = Enum.Font.GothamBold, TextColor3 = Theme.Text,
+		})
+		Lbl({
+			Position = UDim2.fromOffset(16, 72), Size = UDim2.new(1, -32, 0, 38),
+			Text = cfg.Text or "", TextSize = 12, Font = Enum.Font.Gotham,
+			TextColor3 = Theme.SubText, TextWrapped = true,
+		})
+
+		local function CloseDialog(cb)
+			Tween(Blocker, 0.15, { BackgroundTransparency = 1 })
+			Tween(DScale, 0.15, { Scale = 0.85 }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+			task.delay(0.17, function()
+				Overlay:Destroy()
+				Window.ConfirmOpen = false
+				if cb and not Window.Destroyed then pcall(cb) end
+			end)
+		end
+
+		local function DButton(text, color, x, cb)
+			local b = New("TextButton", {
+				Position = UDim2.fromOffset(x, 124),
+				Size = UDim2.fromOffset(122, 34),
+				BackgroundColor3 = color,
+				Text = text,
+				TextColor3 = Color3.new(1, 1, 1),
+				TextSize = 13,
+				Font = Enum.Font.GothamBold,
+				AutoButtonColor = false,
+				BorderSizePixel = 0,
+				ZIndex = 183,
+				Parent = Dialog,
+			})
+			Corner(b, 10)
+			local hover = color:Lerp(Color3.new(1, 1, 1), 0.15)
+			HoverColor(b, color, hover)
+			b.Activated:Connect(function() CloseDialog(cb) end)
+		end
+		DButton(cfg.CancelText or "Cancel", Theme.CardHover, 14, cfg.OnCancel)
+		DButton(cfg.ConfirmText or "OK", Theme.Danger, 154, cfg.OnConfirm)
+
+		Tween(Blocker, 0.2, { BackgroundTransparency = 0.45 })
+		Tween(DScale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
+	end
+
+	MinimizeButton.Activated:Connect(function()
+		Window:Minimize()
+	end)
+
+	CloseButton.Activated:Connect(function()
+		if not Window.ConfirmOnClose then
+			Window:Destroy()
+			return
+		end
+		Window:Confirm({
+			Title = "Close UI?",
+			Text = "This will remove the hub from your screen.",
+			ConfirmText = "Close",
+			CancelText = "Cancel",
+			OnConfirm = function() Window:Destroy() end,
+		})
+	end)
+
+	--=====================================================
+	-- TABS
+	--=====================================================
+
+	function Window:Tab(cfg, icon)
+		if type(cfg) == "table" then
+			return Window:CreateTab(cfg.Title or cfg.Name or "Tab", cfg.Icon or icon)
+		end
+		return Window:CreateTab(cfg, icon)
+	end
+
+	function Window:CreateTab(name, icon)
+		local Tab = { Name = name or "Tab", Icon = icon, Items = {} }
+		table.insert(Window.Tabs, Tab)
+
+		local TabButton = New("TextButton", {
+			Size = UDim2.new(1, 0, 0, 38),
+			BackgroundColor3 = Theme.PrimaryDark,
+			BackgroundTransparency = 1,
+			Text = "",
+			AutoButtonColor = false,
+			Parent = TabHolder,
+		})
+		Corner(TabButton, 8)
+
+		local Accent = New("Frame", {
+			Position = UDim2.new(0, 4, 0.5, -9),
+			Size = UDim2.fromOffset(3, 18),
+			BackgroundColor3 = Theme.Glow,
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			Parent = TabButton,
+		})
+		Corner(Accent, 2)
+
+		local IconObj = GOJO.CreateIcon(icon, {
+			Size = UDim2.fromOffset(18, 18),
+			Position = UDim2.new(0, 16, 0.5, 0),
+			AnchorPoint = Vector2.new(0, 0.5),
+			Color = Theme.SubText,
+		})
+		if IconObj then IconObj.Parent = TabButton end
+
+		local Label = New("TextLabel", {
+			Position = UDim2.fromOffset(IconObj and 42 or 16, 0),
+			Size = UDim2.new(1, -(IconObj and 48 or 22), 1, 0),
+			BackgroundTransparency = 1,
+			Text = Tab.Name,
+			TextColor3 = Theme.SubText,
+			TextSize = 12,
+			Font = Enum.Font.GothamMedium,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			Parent = TabButton,
+		})
+
+		local Page = New("ScrollingFrame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			ScrollBarThickness = 2,
+			ScrollBarImageColor3 = Theme.Primary,
+			CanvasSize = UDim2.new(),
+			AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			Visible = false,
+			Parent = Content,
+		})
+		New("UIPadding", {
+			PaddingTop = UDim.new(0, 12), PaddingBottom = UDim.new(0, 12),
+			PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 14),
+			Parent = Page,
+		})
+		New("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = Page })
+
+		Tab.Button, Tab.Page = TabButton, Page
+
+		function Tab:_Set(on)
+			Page.Visible = on
+			Tween(TabButton, 0.18, { BackgroundTransparency = on and 0.35 or 1 })
+			Tween(Accent, 0.18, { BackgroundTransparency = on and 0 or 1 })
+			Tween(Label, 0.18, { TextColor3 = on and Theme.Text or Theme.SubText })
+			SetIconColor(IconObj, on and Theme.Glow or Theme.SubText)
+		end
+
+		function Tab:Select()
+			for _, other in ipairs(Window.Tabs) do other:_Set(other == Tab) end
+		end
+
+		TabButton.Activated:Connect(function() Tab:Select() end)
+		if #Window.Tabs == 1 then Tab:Select() end
+
+		--=================================================
+		-- ELEMENT BASE
+		--=================================================
+
+		local function MakeElement(height, elName, noRegister)
+			local f = New("Frame", {
+				Size = UDim2.new(1, 0, 0, height),
+				BackgroundColor3 = Theme.Card,
+				BackgroundTransparency = GOJO.Glass.Card,
+				BorderSizePixel = 0,
+				ClipsDescendants = true,
+				Parent = Page,
+			})
+			Corner(f, GOJO.Corners.Element)
+			Stroke(f, Theme.Line, 0.35, 1)
+			if not noRegister then
+				table.insert(Tab.Items, { Frame = f, Key = string.lower(tostring(elName or "")) })
+			end
+			return f
+		end
+
+		local function Hover(hit, frame)
+			hit.MouseEnter:Connect(function() Tween(frame, 0.15, { BackgroundColor3 = Theme.CardHover }) end)
+			hit.MouseLeave:Connect(function() Tween(frame, 0.15, { BackgroundColor3 = Theme.Card }) end)
+		end
+
+		local function Hit(frame, z)
+			return New("TextButton", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				Text = "",
+				AutoButtonColor = false,
+				ZIndex = z or 2,
+				Parent = frame,
+			})
+		end
+
+		--=================================================
+		-- SECTION / LABEL / CARD
+		--=================================================
+
+		function Tab:CreateSection(text)
+			local holder = New("Frame", {
+				Size = UDim2.new(1, 0, 0, 26),
+				BackgroundTransparency = 1,
+				Parent = Page,
+			})
+			New("TextLabel", {
+				Size = UDim2.new(0, 0, 1, 0),
+				AutomaticSize = Enum.AutomaticSize.X,
+				BackgroundTransparency = 1,
+				Text = string.upper(text or "Section"),
+				TextColor3 = Theme.Glow,
+				TextSize = 12,
+				Font = Enum.Font.GothamBold,
+				Parent = holder,
+			})
+			return holder
+		end
+
+		function Tab:CreateLabel(text)
+			local l = New("TextLabel", {
+				Size = UDim2.new(1, 0, 0, 30),
+				BackgroundTransparency = 1,
+				Text = text or "",
+				TextColor3 = Theme.SubText,
+				TextSize = 12,
+				Font = Enum.Font.Gotham,
+				TextWrapped = true,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Parent = Page,
+			})
+			return {
+				Frame = l,
+				Set = function(_, t) l.Text = tostring(t) end,
+			}
+		end
+
+		function Tab:CreateCard(cfg)
+			cfg = cfg or {}
+			return MakeElement(cfg.Height or 80, cfg.Name)
+		end
+
+		--=================================================
+		-- BUTTON
+		--=================================================
+
+		function Tab:CreateButton(cfg)
+			cfg = cfg or {}
+			local hasDesc = (cfg.Description or cfg.Subtitle) ~= nil
+			local f = MakeElement(cfg.Height or (hasDesc and 60 or 46), cfg.Name)
+			local hit = Hit(f, 2)
+			local arrow = cfg.Arrow ~= false
+			local Title, Detail = BuildLabels(f, cfg, "Button", arrow and 54 or 16, 3)
+
+			if arrow then
+				local badge = New("Frame", {
+					AnchorPoint = Vector2.new(1, 0.5),
+					Position = UDim2.new(1, -12, 0.5, 0),
+					Size = UDim2.fromOffset(28, 28),
+					BackgroundColor3 = Theme.Primary,
+					BackgroundTransparency = 0.75,
+					ZIndex = 3,
+					Parent = f,
+				})
+				Round(badge)
+				New("TextLabel", {
+					Size = UDim2.fromScale(1, 1),
+					BackgroundTransparency = 1,
+					Text = cfg.ArrowText or "\u{203A}",
+					TextColor3 = Theme.Glow,
+					TextSize = 22,
+					Font = Enum.Font.GothamMedium,
+					ZIndex = 4,
+					Parent = badge,
+				})
+			end
+
+			Hover(hit, f)
+			hit.Activated:Connect(function()
+				f.BackgroundColor3 = Theme.Primary
+				Tween(f, 0.35, { BackgroundColor3 = Theme.Card })
+				if cfg.Callback then task.spawn(cfg.Callback) end
+			end)
+
+			return {
+				Frame = f,
+				SetTitle = function(_, t) Title.Text = tostring(t) end,
+				SetDescription = function(_, t) if Detail then Detail.Text = tostring(t) end end,
+			}
+		end
+
+		--=================================================
+		-- TOGGLE
+		--=================================================
+
+		function Tab:CreateToggle(cfg)
+			cfg = cfg or {}
+			local state = cfg.Default or false
+			local hasDesc = (cfg.Description or cfg.Subtitle) ~= nil
+			local f = MakeElement(cfg.Height or (hasDesc and 60 or 46), cfg.Name)
+			local hit = Hit(f, 2)
+			BuildLabels(f, cfg, "Toggle", 70, 3)
+
+			local sw = New("Frame", {
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, -14, 0.5, 0),
+				Size = UDim2.fromOffset(44, 24),
+				BackgroundColor3 = state and Theme.Primary or Theme.ToggleOff,
+				ZIndex = 3,
+				Parent = f,
+			})
+			Round(sw)
+			local knob = New("Frame", {
+				Position = state and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9),
+				Size = UDim2.fromOffset(18, 18),
+				BackgroundColor3 = Color3.new(1, 1, 1),
+				ZIndex = 4,
+				Parent = sw,
+			})
+			Round(knob)
+
+			local obj = { Frame = f }
+			local function render()
+				Tween(sw, 0.18, { BackgroundColor3 = state and Theme.Primary or Theme.ToggleOff })
+				Tween(knob, 0.18, {
+					Position = state and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9),
+				})
+			end
+			function obj:Set(v, silent)
+				state = v and true or false
+				render()
+				if not silent and cfg.Callback then task.spawn(cfg.Callback, state) end
+			end
+			function obj:Get() return state end
+
+			Hover(hit, f)
+			hit.Activated:Connect(function() obj:Set(not state) end)
+			if state and cfg.CallOnLoad and cfg.Callback then task.spawn(cfg.Callback, state) end
+			return obj
+		end
+
+		--=================================================
+		-- SLIDER
+		--=================================================
+
+		function Tab:CreateSlider(cfg)
+			cfg = cfg or {}
+			local min, max, inc = cfg.Min or 0, cfg.Max or 100, cfg.Increment or 1
+			local suffix = cfg.Suffix or ""
+			local value = math.clamp(cfg.Default or min, min, max)
+
+			local f = MakeElement(62, cfg.Name)
+			New("TextLabel", {
+				Position = UDim2.fromOffset(14, 6),
+				Size = UDim2.new(1, -110, 0, 24),
+				BackgroundTransparency = 1,
+				Text = cfg.Name or "Slider",
+				TextColor3 = Theme.Text,
+				TextSize = 13,
+				Font = Enum.Font.GothamSemibold,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+				ZIndex = 3,
+				Parent = f,
+			})
+			local ValueLabel = New("TextLabel", {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -14, 0, 6),
+				Size = UDim2.fromOffset(90, 24),
+				BackgroundTransparency = 1,
+				Text = tostring(value) .. suffix,
+				TextColor3 = Theme.Glow,
+				TextSize = 12,
+				Font = Enum.Font.GothamBold,
+				TextXAlignment = Enum.TextXAlignment.Right,
+				ZIndex = 3,
+				Parent = f,
+			})
+
+			local Bar = New("Frame", {
+				Position = UDim2.fromOffset(14, 43),
+				Size = UDim2.new(1, -28, 0, 6),
+				BackgroundColor3 = Theme.ToggleOff,
+				BorderSizePixel = 0,
+				ZIndex = 3,
+				Parent = f,
+			})
+			Round(Bar)
+			local Fill = New("Frame", {
+				Size = UDim2.fromScale(0, 1),
+				BackgroundColor3 = Color3.new(1, 1, 1),
+				BorderSizePixel = 0,
+				ZIndex = 4,
+				Parent = Bar,
+			})
+			Round(Fill)
+			New("UIGradient", { Color = ColorSequence.new(Theme.Primary, Theme.Glow), Parent = Fill })
+			local Knob = New("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(1, 0.5),
+				Size = UDim2.fromOffset(14, 14),
+				BackgroundColor3 = Color3.new(1, 1, 1),
+				ZIndex = 5,
+				Parent = Fill,
+			})
+			Round(Knob)
+			Stroke(Knob, Theme.Primary, 0.3, 2)
+
+			local obj = { Frame = f }
+			local function setValue(v, silent)
+				v = math.floor(v / inc + 0.5) * inc
+				v = math.clamp(tonumber(string.format("%.4f", v)), min, max)
+				value = v
+				Fill.Size = UDim2.fromScale((v - min) / (max - min), 1)
+				ValueLabel.Text = tostring(v) .. suffix
+				if not silent and cfg.Callback then task.spawn(cfg.Callback, v) end
+			end
+			function obj:Set(v) setValue(v) end
+			function obj:Get() return value end
+
+			local hit = New("TextButton", {
+				Position = UDim2.fromOffset(8, 34),
+				Size = UDim2.new(1, -16, 0, 26),
+				BackgroundTransparency = 1,
+				Text = "",
+				AutoButtonColor = false,
+				ZIndex = 6,
+				Parent = f,
+			})
+			Dragger(hit, function(i)
+				local p = math.clamp((i.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+				setValue(min + (max - min) * p)
+			end)
+			setValue(value, true)
+			return obj
+		end
+
+		--=================================================
+		-- INPUT
+		--=================================================
+
+		function Tab:CreateInput(cfg)
+			cfg = cfg or {}
+			local f = MakeElement(74, cfg.Name)
+			AddFieldLabel(f, cfg.Name, cfg.Description)
+			local box = New("TextBox", {
+				Position = UDim2.fromOffset(14, 30),
+				Size = UDim2.new(1, -28, 0, 32),
+				BackgroundColor3 = Theme.Background,
+				Text = cfg.Default or "",
+				PlaceholderText = cfg.Placeholder or "Enter text...",
+				PlaceholderColor3 = Theme.SubText,
+				TextColor3 = Theme.Text,
+				TextSize = 12,
+				Font = Enum.Font.Gotham,
+				ClearTextOnFocus = false,
+				ZIndex = 3,
+				Parent = f,
+			})
+			Corner(box, GOJO.Corners.Inner)
+			local st = Stroke(box, Theme.Line, 0.3, 1)
+			box.Focused:Connect(function() Tween(st, 0.15, { Color = Theme.Primary, Transparency = 0 }) end)
+			box.FocusLost:Connect(function(enter)
+				Tween(st, 0.15, { Color = Theme.Line, Transparency = 0.3 })
+				if cfg.Callback then task.spawn(cfg.Callback, box.Text, enter) end
+			end)
+			if cfg.Numeric then
+				box:GetPropertyChangedSignal("Text"):Connect(function()
+					local clean = box.Text:gsub("[^%d%.%-]", "")
+					if clean ~= box.Text then box.Text = clean end
+				end)
+			end
+			return {
+				Frame = f, Input = box,
+				Get = function() return box.Text end,
+				Set = function(_, t) box.Text = tostring(t) end,
+			}
+		end
+
+		--=================================================
+		-- DROPDOWN / MULTI DROPDOWN
+		--=================================================
+
+		local function MakeDropdown(cfg, multi)
+			cfg = cfg or {}
+			local options = cfg.Options or {}
+			local maxVisible = cfg.MaxVisible or 5
+			local selected
+			if multi then
+				selected = {}
+				for _, v in ipairs(cfg.Default or {}) do selected[v] = true end
+			else
+				selected = cfg.Default or options[1]
+			end
+			local open = false
+
+			local f = MakeElement(48, cfg.Name)
+			local head = Hit(f, 2)
+			New("TextLabel", {
+				Position = UDim2.fromOffset(14, 0),
+				Size = UDim2.new(0.5, -14, 0, 48),
+				BackgroundTransparency = 1,
+				Text = cfg.Name or (multi and "Multi Select" or "Dropdown"),
+				TextColor3 = Theme.Text,
+				TextSize = 13,
+				Font = Enum.Font.GothamSemibold,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+				ZIndex = 3,
+				Parent = f,
+			})
+			local Value = New("TextLabel", {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -36, 0, 0),
+				Size = UDim2.new(0.5, -40, 0, 48),
+				BackgroundTransparency = 1,
+				Text = "",
+				TextColor3 = Theme.Glow,
+				TextSize = 12,
+				Font = Enum.Font.Gotham,
+				TextXAlignment = Enum.TextXAlignment.Right,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+				ZIndex = 3,
+				Parent = f,
+			})
+			local Arrow = New("TextLabel", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(1, -20, 0, 24),
+				Size = UDim2.fromOffset(16, 16),
+				BackgroundTransparency = 1,
+				Text = "\u{25BC}",
+				TextColor3 = Theme.Primary,
+				TextSize = 10,
+				Font = Enum.Font.GothamBold,
+				ZIndex = 3,
+				Parent = f,
+			})
+			local List = New("ScrollingFrame", {
+				Position = UDim2.fromOffset(10, 52),
+				Size = UDim2.new(1, -20, 0, 0),
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				ScrollBarThickness = 2,
+				ScrollBarImageColor3 = Theme.Primary,
+				CanvasSize = UDim2.new(),
+				AutomaticCanvasSize = Enum.AutomaticSize.Y,
+				ZIndex = 3,
+				Parent = f,
+			})
+			New("UIListLayout", { Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder, Parent = List })
+
+			local buttons = {}
+
+			local function valueText()
+				if multi then
+					local c = 0
+					for _, s in pairs(selected) do if s then c += 1 end end
+					return c .. " selected"
+				end
+				return tostring(selected or "Select")
+			end
+
+			local function result()
+				if multi then
+					local r = {}
+					for _, o in ipairs(options) do if selected[o] then table.insert(r, o) end end
+					return r
+				end
+				return selected
+			end
+
+			local function paint()
+				Value.Text = valueText()
+				for opt, b in pairs(buttons) do
+					local on = (multi and selected[opt]) or (not multi and selected == opt)
+					b.TextColor3 = on and Theme.Text or Theme.SubText
+					b.BackgroundTransparency = on and 0.25 or 0.75
+					b.Text = ((multi and on) and "\u{2713}  " or "") .. tostring(opt)
+				end
+			end
+
+			local function listHeight() return math.min(#options, maxVisible) * 33 end
+
+			local function setOpen(v)
+				open = v
+				List.Size = UDim2.new(1, -20, 0, listHeight())
+				Tween(f, 0.22, { Size = UDim2.new(1, 0, 0, 48 + (v and (listHeight() + 10) or 0)) })
+				Tween(Arrow, 0.22, { Rotation = v and 180 or 0 })
+			end
+
+			local function build()
+				for _, c in ipairs(List:GetChildren()) do
+					if c:IsA("TextButton") then c:Destroy() end
+				end
+				buttons = {}
+				for i, opt in ipairs(options) do
+					local b = New("TextButton", {
+						Size = UDim2.new(1, -4, 0, 30),
+						BackgroundColor3 = Theme.CardHover,
+						BackgroundTransparency = 0.75,
+						Text = tostring(opt),
+						TextColor3 = Theme.SubText,
+						TextSize = 12,
+						Font = Enum.Font.Gotham,
+						AutoButtonColor = false,
+						LayoutOrder = i,
+						ZIndex = 4,
+						Parent = List,
+					})
+					Corner(b, 6)
+					buttons[opt] = b
+					b.Activated:Connect(function()
+						if multi then
+							selected[opt] = not selected[opt]
+						else
+							selected = opt
+							setOpen(false)
+						end
+						paint()
+						if cfg.Callback then task.spawn(cfg.Callback, result()) end
+					end)
+				end
+				paint()
+			end
+
+			Hover(head, f)
+			head.Activated:Connect(function() setOpen(not open) end)
+			build()
+
+			return {
+				Frame = f,
+				Get = result,
+				Set = function(_, v)
+					if multi then
+						selected = {}
+						for _, o in ipairs(v or {}) do selected[o] = true end
+					else
+						selected = v
+					end
+					paint()
+				end,
+				SetOptions = function(_, newOptions)
+					options = newOptions or {}
+					if not multi and selected == nil then selected = options[1] end
+					build()
+					if open then setOpen(true) end
+				end,
+			}
+		end
+
+		function Tab:CreateDropdown(cfg) return MakeDropdown(cfg, false) end
+		function Tab:CreateMultiDropdown(cfg) return MakeDropdown(cfg, true) end
+
+		--=================================================
+		-- COLOR PICKER (HSV จริง)
+		--=================================================
+
+		function Tab:CreateColorPicker(cfg)
+			cfg = cfg or {}
+			local value = cfg.Default or Theme.Primary
+			local h, s, v = value:ToHSV()
+			local open = false
+
+			local f = MakeElement(48, cfg.Name)
+			local head = Hit(f, 2)
+			BuildLabels(f, cfg, "Color", 70, 3)
+
+			local swatch = New("Frame", {
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, -14, 0, 24),
+				Size = UDim2.fromOffset(40, 24),
+				BackgroundColor3 = value,
+				ZIndex = 3,
+				Parent = f,
+			})
+			Corner(swatch, 6)
+			Stroke(swatch, Theme.Text, 0.7, 1)
+
+			local SV = New("Frame", {
+				Position = UDim2.fromOffset(14, 56),
+				Size = UDim2.new(1, -62, 0, 100),
+				BackgroundColor3 = Color3.fromHSV(h, 1, 1),
+				BorderSizePixel = 0,
+				ClipsDescendants = true,
+				ZIndex = 3,
+				Parent = f,
+			})
+			Corner(SV, 6)
+			local W = New("Frame", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundColor3 = Color3.new(1, 1, 1),
+				BorderSizePixel = 0,
+				ZIndex = 3,
+				Parent = SV,
+			})
+			New("UIGradient", {
+				Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) }),
+				Parent = W,
+			})
+			local B = New("Frame", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundColor3 = Color3.new(0, 0, 0),
+				BorderSizePixel = 0,
+				ZIndex = 3,
+				Parent = SV,
+			})
+			New("UIGradient", {
+				Rotation = 90,
+				Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0) }),
+				Parent = B,
+			})
+			local Cursor = New("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.fromOffset(12, 12),
+				BackgroundTransparency = 1,
+				ZIndex = 4,
+				Parent = SV,
+			})
+			Round(Cursor)
+			Stroke(Cursor, Color3.new(1, 1, 1), 0, 2)
+			local svHit = New("TextButton", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				Text = "",
+				AutoButtonColor = false,
+				ZIndex = 5,
+				Parent = SV,
+			})
+
+			local Hue = New("Frame", {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -14, 0, 56),
+				Size = UDim2.fromOffset(26, 100),
+				BackgroundColor3 = Color3.new(1, 1, 1),
+				BorderSizePixel = 0,
+				ZIndex = 3,
+				Parent = f,
+			})
+			Corner(Hue, 6)
+			New("UIGradient", {
+				Rotation = 90,
+				Color = ColorSequence.new({
+					ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+					ColorSequenceKeypoint.new(0.167, Color3.fromRGB(255, 255, 0)),
+					ColorSequenceKeypoint.new(0.333, Color3.fromRGB(0, 255, 0)),
+					ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+					ColorSequenceKeypoint.new(0.667, Color3.fromRGB(0, 0, 255)),
+					ColorSequenceKeypoint.new(0.833, Color3.fromRGB(255, 0, 255)),
+					ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0)),
+				}),
+				Parent = Hue,
+			})
+			local HueCursor = New("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.new(1, 4, 0, 5),
+				BackgroundColor3 = Color3.new(1, 1, 1),
+				ZIndex = 4,
+				Parent = Hue,
+			})
+			Corner(HueCursor, 2)
+			local hueHit = New("TextButton", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				Text = "",
+				AutoButtonColor = false,
+				ZIndex = 5,
+				Parent = Hue,
+			})
+
+			local function apply(silent)
+				value = Color3.fromHSV(h, s, v)
+				swatch.BackgroundColor3 = value
+				SV.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+				Cursor.Position = UDim2.fromScale(s, 1 - v)
+				HueCursor.Position = UDim2.fromScale(0.5, h)
+				if not silent and cfg.Callback then task.spawn(cfg.Callback, value) end
+			end
+
+			Dragger(svHit, function(i)
+				s = math.clamp((i.Position.X - SV.AbsolutePosition.X) / SV.AbsoluteSize.X, 0, 1)
+				v = 1 - math.clamp((i.Position.Y - SV.AbsolutePosition.Y) / SV.AbsoluteSize.Y, 0, 1)
+				apply()
+			end)
+			Dragger(hueHit, function(i)
+				h = math.clamp((i.Position.Y - Hue.AbsolutePosition.Y) / Hue.AbsoluteSize.Y, 0, 0.999)
+				apply()
+			end)
+
+			Hover(head, f)
+			head.Activated:Connect(function()
+				open = not open
+				Tween(f, 0.22, { Size = UDim2.new(1, 0, 0, open and 170 or 48) })
+			end)
+			apply(true)
+
+			return {
+				Frame = f,
+				Get = function() return value end,
+				Set = function(_, color)
+					if typeof(color) ~= "Color3" then return end
+					h, s, v = color:ToHSV()
+					apply()
+				end,
+			}
+		end
+
+		--=================================================
+		-- KEYBIND
+		--=================================================
+
+		function Tab:CreateKeybind(cfg)
+			cfg = cfg or {}
+			local key = cfg.Default or Enum.KeyCode.F
+			local listening = false
+
+			local f = MakeElement(cfg.Height or 46, cfg.Name)
+			BuildLabels(f, cfg, "Keybind", 110, 3)
+			local btn = New("TextButton", {
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, -12, 0.5, 0),
+				Size = UDim2.fromOffset(90, 28),
+				BackgroundColor3 = Theme.Background,
+				Text = key.Name,
+				TextColor3 = Theme.Glow,
+				TextSize = 11,
+				Font = Enum.Font.GothamBold,
+				AutoButtonColor = false,
+				ZIndex = 3,
+				Parent = f,
+			})
+			Corner(btn, GOJO.Corners.Inner)
+			Stroke(btn, Theme.Line, 0.3, 1)
+
+			btn.Activated:Connect(function()
+				listening = true
+				btn.Text = "..."
+			end)
+
+			Connect(UserInputService.InputBegan, function(i, processed)
+				if listening then
+					if i.UserInputType == Enum.UserInputType.Keyboard then
+						listening = false
+						if i.KeyCode ~= Enum.KeyCode.Escape then key = i.KeyCode end
+						btn.Text = key.Name
+						if cfg.Changed then task.spawn(cfg.Changed, key) end
+					end
+					return
+				end
+				if not processed and i.KeyCode == key and cfg.Callback then
+					task.spawn(cfg.Callback, key)
+				end
+			end)
+
+			return {
+				Frame = f,
+				Get = function() return key end,
+				Set = function(_, k)
+					if typeof(k) == "EnumItem" then key = k btn.Text = k.Name end
+				end,
+			}
+		end
+
+		--=================================================
+		-- STATUS
+		--=================================================
+
+		function Tab:CreateStatus(cfg)
+			cfg = cfg or {}
+			local f = MakeElement(44, cfg.Text or "status")
+			local dot = New("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(0, 20, 0.5, 0),
+				Size = UDim2.fromOffset(10, 10),
+				BackgroundColor3 = cfg.Color or Theme.Success,
+				Parent = f,
+			})
+			Round(dot)
+			local lbl = New("TextLabel", {
+				Position = UDim2.fromOffset(38, 0),
+				Size = UDim2.new(1, -48, 1, 0),
+				BackgroundTransparency = 1,
+				Text = cfg.Text or "Online",
+				TextColor3 = Theme.Text,
+				TextSize = 12,
+				Font = Enum.Font.GothamMedium,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Parent = f,
+			})
+			task.spawn(function()
+				while f.Parent do
+					Tween(dot, 0.6, { Size = UDim2.fromOffset(14, 14) }, Enum.EasingStyle.Sine)
+					task.wait(0.6)
+					Tween(dot, 0.6, { Size = UDim2.fromOffset(10, 10) }, Enum.EasingStyle.Sine)
+					task.wait(0.6)
+				end
+			end)
+			return {
+				Frame = f,
+				Set = function(_, text, color)
+					lbl.Text = text or lbl.Text
+					if color then dot.BackgroundColor3 = color end
+				end,
+				Get = function() return lbl.Text end,
+			}
+		end
+
+		--=================================================
+		-- FEATURE CARD
+		--=================================================
+
+		function Tab:CreateFeatureCard(cfg)
+			cfg = cfg or {}
+			local color = cfg.Color or Theme.Primary
+			local f = MakeElement(cfg.Height or 82, cfg.Title)
+			Stroke(f, color, 0.55, 1)
+
+			local box = New("Frame", {
+				Position = UDim2.fromOffset(12, 18),
+				Size = UDim2.fromOffset(46, 46),
+				BackgroundColor3 = cfg.Color or Theme.PrimaryDark,
+				BorderSizePixel = 0,
+				Parent = f,
+			})
+			Corner(box, 10)
+			local ic = GOJO.CreateIcon(cfg.Icon or "star", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromOffset(24, 24),
+				Color = Color3.new(1, 1, 1),
+				TextSize = 20,
+				ZIndex = 2,
+			})
+			if ic then ic.Parent = box end
+
+			local t = New("TextLabel", {
+				Position = UDim2.fromOffset(70, 12),
+				Size = UDim2.new(1, -82, 0, 24),
+				BackgroundTransparency = 1,
+				Text = cfg.Title or "Feature",
+				TextColor3 = Theme.Text,
+				TextSize = 13,
+				Font = Enum.Font.GothamBold,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Parent = f,
+			})
+			local d = New("TextLabel", {
+				Position = UDim2.fromOffset(70, 36),
+				Size = UDim2.new(1, -82, 0, 34),
+				BackgroundTransparency = 1,
+				Text = cfg.Description or "",
+				TextColor3 = Theme.SubText,
+				TextSize = 11,
+				Font = Enum.Font.Gotham,
+				TextWrapped = true,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextYAlignment = Enum.TextYAlignment.Top,
+				Parent = f,
+			})
+			if cfg.Glow ~= false then GOJO.Effects:Glow(f, color) end
+			return {
+				Frame = f,
+				SetTitle = function(_, x) t.Text = x end,
+				SetDescription = function(_, x) d.Text = x end,
+			}
+		end
+
+		--=================================================
+		-- INFO CARD / PROFILE CARD
+		--=================================================
+
+		function Tab:CreateInfoCard(cfg)
+			cfg = cfg or {}
+			local compact = cfg.Compact
+			local f = MakeElement(cfg.Height or (compact and 150 or 192), "info profile")
+
+			-- ขอบการ์ดไล่สีหมุน
+			local edge = f:FindFirstChildOfClass("UIStroke")
+			edge.Color = Color3.new(1, 1, 1)
+			edge.Transparency = 0.15
+			edge.Thickness = 1.5
+			local eg = New("UIGradient", {
+				Color = ColorSequence.new({
+					ColorSequenceKeypoint.new(0, Theme.Primary),
+					ColorSequenceKeypoint.new(0.5, Theme.SoftBlack),
+					ColorSequenceKeypoint.new(1, Theme.Primary),
+				}),
+				Parent = edge,
+			})
+			table.insert(gradients, eg)
+
+			local av = New("Frame", {
+				Position = UDim2.fromOffset(14, 14),
+				Size = UDim2.fromOffset(78, 78),
+				BackgroundColor3 = Theme.Background,
+				BorderSizePixel = 0,
+				ZIndex = 3,
+				Parent = f,
+			})
+			Corner(av, 14)
+			Stroke(av, Theme.Primary, 0.2, 1.5)
+			local big = New("ImageLabel", {
+				Position = UDim2.fromOffset(3, 3),
+				Size = UDim2.new(1, -6, 1, -6),
+				BackgroundTransparency = 1,
+				Image = "rbxthumb://type=AvatarHeadShot&id=" .. LocalPlayer.UserId .. "&w=180&h=180",
+				ZIndex = 4,
+				Parent = av,
+			})
+			Corner(big, 12)
+
+			New("TextLabel", {
+				Position = UDim2.fromOffset(106, 16),
+				Size = UDim2.new(1, -118, 0, 24),
+				BackgroundTransparency = 1,
+				Text = LocalPlayer.DisplayName,
+				TextColor3 = Theme.Text,
+				TextSize = 15,
+				Font = Enum.Font.GothamBold,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+				ZIndex = 3,
+				Parent = f,
+			})
+			New("TextLabel", {
+				Position = UDim2.fromOffset(106, 40),
+				Size = UDim2.new(1, -118, 0, 18),
+				BackgroundTransparency = 1,
+				Text = "@" .. LocalPlayer.Name,
+				TextColor3 = Theme.SubText,
+				TextSize = 10,
+				Font = Enum.Font.Gotham,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd,
+				ZIndex = 3,
+				Parent = f,
+			})
+
+			local live = New("Frame", {
+				Position = UDim2.fromOffset(107, 69),
+				Size = UDim2.fromOffset(8, 8),
+				BackgroundColor3 = Theme.Success,
+				ZIndex = 3,
+				Parent = f,
+			})
+			Round(live)
+			New("TextLabel", {
+				Position = UDim2.fromOffset(121, 64),
+				Size = UDim2.new(1, -135, 0, 18),
+				BackgroundTransparency = 1,
+				Text = "GOJO ONLINE",
+				TextColor3 = Theme.Success,
+				TextSize = 9,
+				Font = Enum.Font.GothamBold,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				ZIndex = 3,
+				Parent = f,
+			})
+
+			local perf = New("TextLabel", {
+				Position = UDim2.new(0, 14, 1, -26),
+				Size = UDim2.new(1, -28, 0, 20),
+				BackgroundTransparency = 1,
+				Text = "FPS: --   \u{2022}   Ping: -- ms",
+				TextColor3 = Theme.Glow,
+				TextSize = 10,
+				Font = Enum.Font.GothamBold,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				ZIndex = 3,
+				Parent = f,
+			})
+
+			local infoLabel
+			local gameName = tostring(game.Name)
+			local function updateInfo()
+				if not infoLabel then return end
+				infoLabel.Text = "GOJO v" .. GOJO.Version
+					.. "\nUser ID: " .. tostring(LocalPlayer.UserId) .. "    Game: " .. gameName
+					.. "\nPlace: " .. tostring(game.PlaceId) .. "    Job: " .. string.sub(tostring(game.JobId), 1, 18) .. "..."
+			end
+
+			if not compact then
+				New("Frame", {
+					Position = UDim2.fromOffset(14, 102),
+					Size = UDim2.new(1, -28, 0, 1),
+					BackgroundColor3 = Theme.Line,
+					BorderSizePixel = 0,
+					ZIndex = 3,
+					Parent = f,
+				})
+				infoLabel = New("TextLabel", {
+					Position = UDim2.fromOffset(14, 110),
+					Size = UDim2.new(1, -28, 0, 52),
+					BackgroundTransparency = 1,
+					Text = "",
+					TextColor3 = Theme.SubText,
+					TextSize = 10,
+					Font = Enum.Font.Gotham,
+					TextWrapped = true,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					TextYAlignment = Enum.TextYAlignment.Top,
+					ZIndex = 3,
+					Parent = f,
+				})
+				updateInfo()
+				task.spawn(function()
+					local ok, info = pcall(function()
+						return MarketplaceService:GetProductInfo(game.PlaceId)
+					end)
+					if ok and info and info.Name then
+						gameName = info.Name
+						updateInfo()
+					end
+				end)
+			end
+
+			local frames, lastT = 0, os.clock()
+			Connect(RunService.RenderStepped, function()
+				if not f.Parent then return end
+				frames += 1
+				local now = os.clock()
+				if now - lastT >= 1 then
+					perf.Text = "FPS: " .. frames .. "   \u{2022}   Ping: " .. GetPing() .. " ms"
+					frames, lastT = 0, now
+				end
+			end)
+
+			task.spawn(function()
+				while f.Parent do
+					Tween(live, 0.6, { BackgroundTransparency = 0.7 })
+					task.wait(0.6)
+					Tween(live, 0.6, { BackgroundTransparency = 0 })
+					task.wait(0.6)
+				end
+			end)
+
+			if cfg.Aura ~= false then GOJO.Effects:Aura(f) end
+
+			return { Frame = f, Avatar = big, Performance = perf, Update = updateInfo }
+		end
+
+		function Tab:CreateProfileCard(cfg)
+			cfg = cfg or {}
+			cfg.Compact = true
+			return Tab:CreateInfoCard(cfg)
+		end
+
+		--=================================================
+		-- SEARCH BOX (กรององค์ประกอบในแท็บนี้)
+		--=================================================
+
+		function Tab:CreateSearchBox(cfg)
+			cfg = cfg or {}
+			local f = MakeElement(68, cfg.Name, true)
+			AddFieldLabel(f, cfg.Name or "Search", cfg.Description)
+			local box = New("TextBox", {
+				Position = UDim2.fromOffset(14, 28),
+				Size = UDim2.new(1, -28, 0, 32),
+				BackgroundColor3 = Theme.Background,
+				Text = "",
+				PlaceholderText = cfg.Placeholder or "Search...",
+				PlaceholderColor3 = Theme.SubText,
+				TextColor3 = Theme.Text,
+				TextSize = 12,
+				Font = Enum.Font.Gotham,
+				ClearTextOnFocus = false,
+				ZIndex = 3,
+				Parent = f,
+			})
+			Corner(box, GOJO.Corners.Inner)
+			Stroke(box, Theme.Line, 0.3, 1)
+			box:GetPropertyChangedSignal("Text"):Connect(function()
+				local q = string.lower(box.Text)
+				for _, item in ipairs(Tab.Items) do
+					item.Frame.Visible = (q == "") or (string.find(item.Key, q, 1, true) ~= nil)
+				end
+				if cfg.Callback then task.spawn(cfg.Callback, box.Text) end
+			end)
+			return { Frame = f, Input = box, Get = function() return box.Text end }
+		end
+
+		--=================================================
+		-- COMMAND BOX
+		--   Commands = { fly = function(args) end, ... }   Prefix = ":"
+		--=================================================
+
+		function Tab:CreateCommandBox(cfg)
+			cfg = cfg or {}
+			local prefix = cfg.Prefix or ":"
+			local f = MakeElement(76, cfg.Name)
+			AddFieldLabel(f, cfg.Name or "Command", cfg.Description)
+			local box = New("TextBox", {
+				Position = UDim2.fromOffset(14, 30),
+				Size = UDim2.new(1, -94, 0, 34),
+				BackgroundColor3 = Theme.Background,
+				Text = "",
+				PlaceholderText = cfg.Placeholder or (prefix .. "help"),
+				PlaceholderColor3 = Theme.SubText,
+				TextColor3 = Theme.Text,
+				TextSize = 12,
+				Font = Enum.Font.Code,
+				ClearTextOnFocus = false,
+				ZIndex = 3,
+				Parent = f,
+			})
+			Corner(box, GOJO.Corners.Inner)
+			Stroke(box, Theme.Line, 0.3, 1)
+
+			local run = New("TextButton", {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -14, 0, 30),
+				Size = UDim2.fromOffset(64, 34),
+				BackgroundColor3 = Theme.Primary,
+				Text = "RUN",
+				TextColor3 = Color3.new(1, 1, 1),
+				TextSize = 11,
+				Font = Enum.Font.GothamBold,
+				AutoButtonColor = false,
+				ZIndex = 3,
+				Parent = f,
+			})
+			Corner(run, GOJO.Corners.Inner)
+			HoverColor(run, Theme.Primary, Theme.Glow)
+
+			local function execute()
+				local text = box.Text
+				if text == "" then return end
+				local clean = text
+				if string.sub(clean, 1, #prefix) == prefix then clean = string.sub(clean, #prefix + 1) end
+				local name, args = clean:match("^%s*(%S+)%s*(.-)%s*$")
+				local handler = cfg.Commands and name and cfg.Commands[string.lower(name)]
+				if handler then
+					task.spawn(handler, args)
+				elseif cfg.Callback then
+					task.spawn(cfg.Callback, text)
+				end
+			end
+
+			run.Activated:Connect(execute)
+			box.FocusLost:Connect(function(enter) if enter then execute() end end)
+
+			return {
+				Frame = f, Input = box, Run = execute,
+				Get = function() return box.Text end,
+				Set = function(_, t) box.Text = tostring(t or "") end,
+			}
+		end
+
+		return Tab
+	end
+
+	--=====================================================
+	-- OPENING
+	--=====================================================
+
+	HideScale.Scale = 0.85
+	Tween(HideScale, 0.45, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+	local introDelay = 0.5
+	if FX.Intro and not (FX.IntroOnce and GOJO.IntroPlayed) then
+		GOJO.BuildIntro(ScreenGui, Window.Title, Window.Subtitle)
+		introDelay = 4.4
+	end
+
+	if config.Welcome ~= false then
+		task.delay(introDelay, function()
+			if not Window.Destroyed then
+				Window:Notify({
+					Title = Window.Title .. "  v" .. GOJO.Version,
+					Content = config.WelcomeText or "Infinity loaded. Nothing can touch you.",
+					Type = "success",
+					Duration = 3.5,
+				})
+			end
+		end)
+	end
+
+	return Window
+end
+
+--=========================================================
+-- EXAMPLE (ลบ/คอมเมนต์ได้)
+--=========================================================
+--[[
+
+local GOJO = loadstring(game:HttpGet("LINK_RAW_ของมึง"))()
+-- GOJO:SetTheme("purple")   -- "blue" (ค่าเริ่มต้น) | "purple" | "red"
+
+local Window = GOJO:CreateWindow({
+	Title = "GOJO HUB",
+	Subtitle = "Limitless  \u{2022}  Infinity",
+	ToggleKey = Enum.KeyCode.RightShift,
+})
+
+local Home = Window:Tab({ Title = "Home", Icon = "home" })
+Home:CreateInfoCard({})
+Home:CreateStatus({ Text = "Undetected  \u{2022}  Online" })
+
+local Main = Window:Tab({ Title = "Main", Icon = "zap" })
+Main:CreateSection("Combat")
+Main:CreateToggle({ Name = "Infinity", Description = "Auto dodge", Icon = "infinity", Callback = function(v) print(v) end })
+Main:CreateSlider({ Name = "WalkSpeed", Min = 16, Max = 200, Default = 16, Suffix = " sp", Callback = function(v) print(v) end })
+Main:CreateButton({ Name = "Hollow Purple", Description = "Fire it", Icon = "sparkles", Callback = function()
+	Window:Notify({ Title = "GOJO", Content = "Purple!", Type = "success" })
+end })
+Main:CreateDropdown({ Name = "Mode", Options = { "Blue", "Red", "Purple" }, Default = "Blue", Callback = print })
+Main:CreateMultiDropdown({ Name = "Targets", Options = { "Players", "NPC", "Boss" }, Callback = print })
+Main:CreateColorPicker({ Name = "ESP Color", Callback = print })
+Main:CreateInput({ Name = "Target", Placeholder = "name...", Callback = print })
+Main:CreateKeybind({ Name = "Panic", Default = Enum.KeyCode.X, Callback = function() print("panic") end })
+Main:CreateCommandBox({ Commands = { hi = function(args) print("hi", args) end } })
+
+]]
+
+return GOJO
