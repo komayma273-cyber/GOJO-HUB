@@ -741,6 +741,16 @@ function GOJO:CreateWindow(config)
 	if config.Theme then GOJO:SetTheme(config.Theme) end
 	if config.Intro ~= nil then GOJO.FX.Intro = config.Intro end
 
+	-- ภาพปุ่มลอยสำหรับเปิด/ปิดหน้าต่างหลัก; FloatImage ที่ส่งเข้ามายัง override ได้
+	local floatImage = config.FloatImage
+	if floatImage == nil then
+		floatImage = "rbxassetid://96118172350045"
+	elseif type(floatImage) == "number" then
+		floatImage = "rbxassetid://" .. tostring(floatImage)
+	elseif type(floatImage) == "string" and floatImage:match("^%d+$") then
+		floatImage = "rbxassetid://" .. floatImage
+	end
+
 	local FX = GOJO.FX
 	local Window = {}
 
@@ -1383,12 +1393,12 @@ function GOJO:CreateWindow(config)
 	local FloatScale = New("UIScale", { Scale = 1, Parent = FloatButton })
 	Window.FloatButton = FloatButton
 
-	if config.FloatImage and config.FloatImage ~= "" then
+	if floatImage and floatImage ~= "" then
 		FloatButton.Text = ""
 		New("ImageLabel", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
-			Image = config.FloatImage,
+			Image = floatImage,
 			ScaleType = Enum.ScaleType.Fit,
 			ZIndex = 121,
 			Parent = FloatButton,
