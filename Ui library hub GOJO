@@ -749,7 +749,7 @@ function GOJO:CreateWindow(config)
 	-- ภาพปุ่มลอยสำหรับเปิด/ปิดหน้าต่างหลัก; FloatImage ที่ส่งเข้ามายัง override ได้
 	local floatImage = config.FloatImage
 	if floatImage == nil then
-		floatImage = "rbxassetid://137896593765941"
+		floatImage = "rbxassetid://94584198599505"
 	elseif type(floatImage) == "number" then
 		floatImage = "rbxassetid://" .. tostring(floatImage)
 	elseif type(floatImage) == "string" and floatImage:match("^%d+$") then
