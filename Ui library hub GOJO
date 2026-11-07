@@ -25,11 +25,12 @@ TAB ELEMENTS
 
 EFFECTS
 - Glow / Pulse / Shake / Rainbow / Aura (พลังคำสาป)
-- ขอบ UI ไล่สี น้ำเงิน <-> ดำอ่อน หมุนวนตลอด
+- ขอบ UI ไล่สี ม่วง <-> ดำม่วง หมุนวนตลอด
 - Intro เต็มจอ (วงแหวน Infinity + Six Eyes)
-- อนุภาคลอยขึ้น / ลูกแก้ว Blue & Red โคจรรอบโลโก้
+- อนุภาคลอยขึ้น / ลูกแก้ว ม่วง & ชมพู โคจรรอบโลโก้
 
-THEMES:  GOJO:SetTheme("blue" | "purple" | "red")  (เรียกก่อน CreateWindow)
+THEMES:  GOJO:SetTheme("purple" | "blue" | "red")  (เรียกก่อน CreateWindow)
+         ค่าเริ่มต้น = purple (ม่วงดำ)
 =========================================================
 ]]
 
@@ -84,18 +85,22 @@ GOJO.Themes.Blue = {
 	OrbB = Color3.fromRGB(255, 70, 85),
 }
 
+-- ม่วงดำ (ธีมหลัก)
 GOJO.Themes.Purple = CloneTheme(GOJO.Themes.Blue, {
-	Background = Color3.fromRGB(14, 9, 22),
-	Sidebar = Color3.fromRGB(10, 6, 17),
-	Card = Color3.fromRGB(28, 18, 46),
-	CardHover = Color3.fromRGB(44, 28, 74),
+	Background = Color3.fromRGB(8, 4, 14),
+	Sidebar = Color3.fromRGB(5, 2, 10),
+	Card = Color3.fromRGB(20, 11, 34),
+	CardHover = Color3.fromRGB(38, 20, 64),
 	Primary = Color3.fromRGB(150, 80, 255),
-	PrimaryDark = Color3.fromRGB(80, 36, 160),
-	Glow = Color3.fromRGB(208, 150, 255),
-	Line = Color3.fromRGB(70, 40, 120),
-	SubText = Color3.fromRGB(170, 145, 210),
-	ToggleOff = Color3.fromRGB(58, 42, 88),
-	FloatBg = Color3.fromRGB(16, 8, 26),
+	PrimaryDark = Color3.fromRGB(70, 28, 140),
+	Glow = Color3.fromRGB(200, 140, 255),
+	SoftBlack = Color3.fromRGB(14, 8, 24),
+	Line = Color3.fromRGB(62, 34, 110),
+	SubText = Color3.fromRGB(165, 140, 205),
+	ToggleOff = Color3.fromRGB(48, 32, 78),
+	FloatBg = Color3.fromRGB(10, 5, 18),
+	OrbA = Color3.fromRGB(170, 90, 255),
+	OrbB = Color3.fromRGB(255, 70, 200),
 })
 
 GOJO.Themes.Red = CloneTheme(GOJO.Themes.Blue, {
@@ -115,15 +120,15 @@ GOJO.Themes.Red = CloneTheme(GOJO.Themes.Blue, {
 local Theme
 
 function GOJO:SetTheme(name)
-	local key = tostring(name or "blue"):lower():gsub("^%l", string.upper)
-	if not self.Themes[key] then key = "Blue" end
+	local key = tostring(name or "purple"):lower():gsub("^%l", string.upper)
+	if not self.Themes[key] then key = "Purple" end
 	Theme = self.Themes[key]
 	self.Theme = Theme
 	self.ThemeName = key
 	return Theme
 end
 
-GOJO:SetTheme("blue")
+GOJO:SetTheme("purple")
 
 -- 0 = ทึบ  1 = โปร่งใสสุด
 GOJO.Glass = { Main = 0.06, Sidebar = 0.2, Card = 0.25 }
@@ -503,7 +508,7 @@ function GOJO.BuildIntro(Gui, TitleText, SubText)
 
 	local Dim = New("Frame", {
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.fromRGB(2, 4, 12),
+		BackgroundColor3 = Color3.fromRGB(6, 2, 12),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ZIndex = 200,
@@ -553,7 +558,7 @@ function GOJO.BuildIntro(Gui, TitleText, SubText)
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(cx, dx, cy, 0),
 			Size = UDim2.fromOffset(0, 6),
-			BackgroundColor3 = Color3.fromRGB(200, 238, 255),
+			BackgroundColor3 = Color3.fromRGB(235, 215, 255),
 			BorderSizePixel = 0,
 			Rotation = rot,
 			ZIndex = 204,
@@ -744,7 +749,7 @@ function GOJO:CreateWindow(config)
 	-- ภาพปุ่มลอยสำหรับเปิด/ปิดหน้าต่างหลัก; FloatImage ที่ส่งเข้ามายัง override ได้
 	local floatImage = config.FloatImage
 	if floatImage == nil then
-		floatImage = "rbxassetid://96118172350045"
+		floatImage = "rbxassetid://137896593765941"
 	elseif type(floatImage) == "number" then
 		floatImage = "rbxassetid://" .. tostring(floatImage)
 	elseif type(floatImage) == "string" and floatImage:match("^%d+$") then
@@ -788,7 +793,7 @@ function GOJO:CreateWindow(config)
 		end)
 	end
 
-	-- ขอบไล่สี น้ำเงิน <-> ดำอ่อน (หมุนวน)
+	-- ขอบไล่สี ม่วง <-> ดำม่วง (หมุนวน)
 	local function BorderGrad(target, thickness)
 		local st = New("UIStroke", {
 			Parent = target,
@@ -810,7 +815,7 @@ function GOJO:CreateWindow(config)
 		return st, g
 	end
 
-	-- ลูกแก้ว Blue & Red โคจร
+	-- ลูกแก้วโคจร (ม่วง & ชมพู)
 	local function Orbit(parent, radius, z)
 		local orbs = {
 			{ color = Theme.OrbA, phase = 0, speed = 1.8 },
@@ -874,7 +879,7 @@ function GOJO:CreateWindow(config)
 
 	local MainStroke = BorderGrad(Main, 2.5)
 
-	-- เฉดพื้นหลัง
+	-- เฉดพื้นหลัง (ม่วงเรืองขอบบน-ล่าง กลางดำ)
 	if FX.Tint then
 		local tint = New("Frame", {
 			Name = "GojoTint",
@@ -892,9 +897,9 @@ function GOJO:CreateWindow(config)
 				ColorSequenceKeypoint.new(1, Theme.PrimaryDark),
 			}),
 			Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 0.82),
-				NumberSequenceKeypoint.new(0.5, 1),
-				NumberSequenceKeypoint.new(1, 0.88),
+				NumberSequenceKeypoint.new(0, 0.6),
+				NumberSequenceKeypoint.new(0.5, 0.95),
+				NumberSequenceKeypoint.new(1, 0.65),
 			}),
 			Parent = tint,
 		})
@@ -2871,7 +2876,7 @@ end
 --[[
 
 local GOJO = loadstring(game:HttpGet("LINK_RAW_ของมึง"))()
--- GOJO:SetTheme("purple")   -- "blue" (ค่าเริ่มต้น) | "purple" | "red"
+-- GOJO:SetTheme("purple")   -- "purple" (ค่าเริ่มต้น ม่วงดำ) | "blue" | "red"
 
 local Window = GOJO:CreateWindow({
 	Title = "GOJO HUB",
